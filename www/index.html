@@ -401,6 +401,47 @@ h1 span{display:inline-block;color:var(--accent);text-shadow:0 3px 0 var(--accen
 :root[data-style="future"] .joy i{box-shadow:0 0 18px var(--accent)}
 :root[data-style="future"] .empty{border-color:rgba(255,212,0,.22)}
 :root[data-style="future"] .fut-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:rgba(255,212,0,.08);box-shadow:0 0 18px -2px var(--glow),inset 0 0 12px rgba(255,212,0,.12);text-shadow:0 0 8px var(--glow)}
+
+/* ===== Future mode, level 2 ===== */
+.hud,.boot{display:none}
+:root[data-style="future"]{--body:"Rajdhani","Lexend",system-ui,sans-serif}
+:root[data-style="future"] body{font-size:16px;letter-spacing:.01em}
+:root[data-style="future"] .hud{display:block;position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:2;pointer-events:none;
+  font:600 12px var(--mono);letter-spacing:.14em;color:var(--accent);padding:6px 14px;border:1px solid rgba(255,212,0,.35);
+  background:rgba(5,6,10,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);text-shadow:0 0 8px var(--glow);
+  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%);white-space:nowrap;font-variant-numeric:tabular-nums}
+@media (max-width:560px){:root[data-style="future"] .hud{top:54px;left:12px;transform:none;font-size:10px;padding:5px 12px}}
+:root[data-style="future"] .boot:not([hidden]){display:grid;place-items:center;position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,rgba(255,212,0,.12),rgba(2,3,6,.92) 60%);animation:bootOut .25s ease-in 1.15s forwards}
+.boot-in{display:grid;gap:10px;justify-items:center;font:600 13px var(--mono);letter-spacing:.2em;color:var(--accent);text-shadow:0 0 12px var(--glow)}
+.boot-in b{font:800 34px "Orbitron",var(--display);letter-spacing:.3em;color:#fff;text-shadow:0 0 24px var(--glow)}
+.boot-in i{display:block;width:220px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:bootBar 1s ease-out}
+@keyframes bootBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes bootOut{to{opacity:0}}
+/* chamfered sci-fi corners */
+:root[data-style="future"] .btn,:root[data-style="future"] .seg,:root[data-style="future"] .seg3,:root[data-style="future"] .modes,
+:root[data-style="future"] .szb,:root[data-style="future"] .titem,:root[data-style="future"] .part,:root[data-style="future"] .stepcol{
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);border-radius:0}
+:root[data-style="future"] .sw{clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);border-radius:0}
+:root[data-style="future"] .btn,:root[data-style="future"] .seg button,:root[data-style="future"] .seg3 button,:root[data-style="future"] .modes b{
+  text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+/* light sweeping along the header edge */
+@media (prefers-reduced-motion:no-preference){
+  :root[data-style="future"] header::after{background:linear-gradient(90deg,transparent 0%,var(--accent) 50%,transparent 100%) 0 0/40% 100% no-repeat,
+      linear-gradient(90deg,transparent,rgba(255,212,0,.35),transparent);animation:sweep 4s linear infinite}
+  @keyframes sweep{from{background-position:-60% 0,0 0}to{background-position:160% 0,0 0}}
+  :root[data-style="future"] h1{animation:glitch 7s steps(1) infinite}
+  @keyframes glitch{
+    0%,90%,100%{transform:none;clip-path:none;text-shadow:0 0 22px rgba(255,212,0,.35)}
+    91%{transform:translate(3px,-1px);text-shadow:-3px 0 rgba(255,212,0,.9),3px 0 rgba(255,255,255,.6)}
+    93%{transform:translate(-3px,1px);clip-path:inset(15% 0 45% 0)}
+    95%{transform:translate(2px,0);clip-path:inset(55% 0 10% 0);text-shadow:2px 0 rgba(255,212,0,.9)}
+    97%{transform:none;clip-path:none}}
+  :root[data-style="future"] .group h3::before{animation:blink 2.4s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.35;box-shadow:0 0 2px var(--accent)}}
+}
+:root[data-style="future"] .view{cursor:crosshair}
+:root[data-style="future"] .count{clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);border-radius:0}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -444,6 +485,8 @@ h1 span{display:inline-block;color:var(--accent);text-shadow:0 3px 0 var(--accen
   <div class="bench">
     <section class="stage" aria-label="Build plate">
       <div class="view" id="view">
+        <span class="hud" id="hud" aria-hidden="true">SYS ONLINE</span>
+        <div class="boot" id="boot" hidden aria-hidden="true"><div class="boot-in"><b>BRICKO OS</b><span id="bootTxt"></span><i></i></div></div>
         <span class="count" id="count">0 blocks</span>
         <div class="task" id="taskCard">
           <div class="task-top"><b id="taskName">Task</b><code id="taskCode"></code><button class="gx" type="button" id="gExit" hidden aria-label="Stop building step by step">✕</button></div>
@@ -740,6 +783,18 @@ function makeShared(){
   studEdge = new THREE.EdgesGeometry(studGeo, 30);
   mats = COLORS.map(c=>new THREE.MeshPhysicalMaterial({color:c[2],roughness:.22,metalness:0,clearcoat:.6,clearcoatRoughness:.2}));
   brickMat = new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.28,metalness:0,clearcoat:.55,clearcoatRoughness:.2,envMapIntensity:.32});
+  brickMat.onBeforeCompile=sh=>{          // Future mode: glowing edges on every brick
+    sh.uniforms.uRim=rimU;
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform float uRim;')
+      .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
+        { float rim=pow(1.0-clamp(dot(normal,normalize(vViewPosition)),0.0,1.0),2.6);
+          vec3 rc=vec3(1.0,0.86,0.25);
+          #ifdef USE_INSTANCING_COLOR
+            rc=mix(rc,vColor,0.45);
+          #endif
+          totalEmissiveRadiance+=rc*rim*uRim; }`);
+  };
+  brickMat.customProgramCacheKey=()=>"bricko-rim";
   if(THREE.RoundedBoxGeometry) edgeMat.visible=false;     // rounded bricks show their own seams
   fadeMat = new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.2,depthWrite:false});
   plateStudGeo = new THREE.CylinderGeometry(.3,.3,.18,14);
@@ -776,12 +831,94 @@ function studioEnv(r){
     const pm=new THREE.PMREMGenerator(r), t=pm.fromScene(new THREE.RoomEnvironment(),.04).texture; pm.dispose(); return t; }
   catch{ return null; }
 }
-let bgTex=null, ground=null, composer=null, bloomPass=null, useBloom=false;
+let bgTex=null, ground=null, composer=null, bloomPass=null, useBloom=false, holoFloor=null, holoFrame=null, motes=null;
+const rimU={value:0};
+const isFut=()=>document.documentElement.getAttribute("data-style")==="future";
 function stageBackground(){
+  if(isFut()){
+    const S=1024, c=document.createElement("canvas"); c.width=S; c.height=S; const x=c.getContext("2d");
+    const g=x.createLinearGradient(0,0,0,S); g.addColorStop(0,"#151a2b"); g.addColorStop(.55,"#07090f"); g.addColorStop(1,"#020306");
+    x.fillStyle=g; x.fillRect(0,0,S,S);
+    const h=x.createRadialGradient(S*.5,S*.12,0,S*.5,S*.12,S*.6); h.addColorStop(0,"rgba(255,212,0,.16)"); h.addColorStop(1,"rgba(255,212,0,0)");
+    x.fillStyle=h; x.fillRect(0,0,S,S);
+    let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    for(let i=0;i<420;i++){ const y=rnd()*S*.7, r=rnd()<.06?1.6:.7+rnd()*.5;
+      x.fillStyle=`rgba(${rnd()<.25?"255,225,140":"255,255,255"},${.25+rnd()*.6})`; x.beginPath(); x.arc(rnd()*S,y,r,0,7); x.fill(); }
+    return new THREE.CanvasTexture(c);
+  }
   const c=document.createElement("canvas"); c.width=4; c.height=256;
   const x=c.getContext("2d"), g=x.createLinearGradient(0,0,0,256);
   g.addColorStop(0,css("--stage-top")); g.addColorStop(1,css("--stage")); x.fillStyle=g; x.fillRect(0,0,4,256);
   return new THREE.CanvasTexture(c);
+}
+// holographic floor: grid lines plus a scanning wave that sweeps out from the middle
+function makeHoloFloor(){
+  const mat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    uniforms:{uTime:{value:0},uN:{value:N},uColor:{value:new THREE.Color(0xffd400)}},
+    vertexShader:"varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+    fragmentShader:`uniform float uTime; uniform float uN; uniform vec3 uColor; varying vec2 vUv;
+      float gline(float v){ float w=fwidth(v)*1.3; float f=abs(fract(v-0.5)-0.5); return 1.0-smoothstep(0.0,w,f); }
+      void main(){
+        vec2 g=vUv*uN; float l=max(gline(g.x),gline(g.y));
+        vec2 c=vUv-0.5; float r=length(c)*2.0;
+        float wave=fract(uTime*0.16)*1.6; float ring=exp(-pow((r-wave)*9.0,2.0));
+        float edge=smoothstep(1.0,0.86,max(abs(c.x),abs(c.y))*2.0);
+        float a=(l*0.28+ring*(0.12+l*0.95))*edge;
+        gl_FragColor=vec4(uColor*a,a);
+      }`});
+  mat.extensions={derivatives:true};
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat); m.rotation.x=-Math.PI/2; m.position.y=.007; m.renderOrder=1;
+  return m;
+}
+function makeMotes(){
+  const n=360, pos=new Float32Array(n*3), sp=new Float32Array(n);
+  for(let i=0;i<n;i++){ pos[i*3]=(Math.random()-.5)*60; pos[i*3+1]=Math.random()*24; pos[i*3+2]=(Math.random()-.5)*60; sp[i]=.25+Math.random()*.7; }
+  const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d"), rg=x.createRadialGradient(32,32,0,32,32,32);
+  rg.addColorStop(0,"rgba(255,240,170,1)"); rg.addColorStop(.35,"rgba(255,212,0,.55)"); rg.addColorStop(1,"rgba(255,212,0,0)"); x.fillStyle=rg; x.fillRect(0,0,64,64);
+  const p=new THREE.Points(g,new THREE.PointsMaterial({size:.45,map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}));
+  p.userData.sp=sp; p.frustumCulled=false; return p;
+}
+function makeFrame(){
+  const g=new THREE.Group(), m=new THREE.MeshBasicMaterial({color:0xffe14d});
+  const bar=(w,d,x,z)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(w,.07,d),m); b.position.set(x,.02,z); g.add(b); };
+  bar(N+.16,.08,0,-N/2-.04); bar(N+.16,.08,0,N/2+.04); bar(.08,N+.16,-N/2-.04,0); bar(.08,N+.16,N/2+.04,0);
+  return g;
+}
+function futureScene(on){
+  if(!scene) return;
+  if(!holoFloor){ holoFloor=makeHoloFloor(); scene.add(holoFloor); }
+  holoFloor.visible=on; holoFloor.scale.set(N,N,1); holoFloor.material.uniforms.uN.value=N;
+  if(holoFrame){ scene.remove(holoFrame); holoFrame.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); holoFrame=null; }
+  if(on){ holoFrame=makeFrame(); scene.add(holoFrame); }
+  if(!motes){ motes=makeMotes(); scene.add(motes); }
+  motes.visible=on;
+  rimU.value=on?1.25:0;
+}
+const fxRings=[];
+let fxCtx=null;
+function fxPlace(x,y,z,w,d){
+  if(!isFut()||!ok3d) return;
+  if(!REDUCED){
+    const m=new THREE.Mesh(new THREE.RingGeometry(.42,.5,48),new THREE.MeshBasicMaterial({color:0xffe066,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    m.rotation.x=-Math.PI/2; m.position.set(x+O+w/2,y+.03,z+O+d/2); scene.add(m); fxRings.push({m,t0:performance.now(),s:Math.max(w,d)});
+  }
+  try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    if(!fxCtx) fxCtx=new AC(); const t=fxCtx.currentTime, o=fxCtx.createOscillator(), gn=fxCtx.createGain(), v=.05*(settings.volume/100+.2);
+    o.type="triangle"; o.frequency.setValueAtTime(660,t); o.frequency.exponentialRampToValueAtTime(1480,t+.07);
+    gn.gain.setValueAtTime(.0001,t); gn.gain.exponentialRampToValueAtTime(v,t+.01); gn.gain.exponentialRampToValueAtTime(.0001,t+.16);
+    o.connect(gn); gn.connect(fxCtx.destination); o.start(t); o.stop(t+.2); }catch{}
+}
+function futureTick(dt){
+  if(holoFloor&&holoFloor.visible&&!REDUCED) holoFloor.material.uniforms.uTime.value+=dt;
+  if(motes&&motes.visible&&!REDUCED){
+    const a=motes.geometry.attributes.position, sp=motes.userData.sp, top=Math.max(24,N*.5), span=Math.max(60,N*1.6);
+    for(let i=0;i<sp.length;i++){ let y=a.array[i*3+1]+sp[i]*dt; if(y>top){ y=0; a.array[i*3]=(Math.random()-.5)*span; a.array[i*3+2]=(Math.random()-.5)*span; } a.array[i*3+1]=y; }
+    a.needsUpdate=true;
+  }
+  for(let i=fxRings.length-1;i>=0;i--){ const f=fxRings[i], t=(performance.now()-f.t0)/520;
+    if(t>=1){ scene.remove(f.m); f.m.geometry.dispose(); f.m.material.dispose(); fxRings.splice(i,1); continue; }
+    f.m.scale.setScalar(1+t*(2+f.s*1.6)); f.m.material.opacity=(1-t)*(1-t); }
 }
 
 function init3d(){
@@ -831,6 +968,7 @@ function applyTheme(){
   plate.material.envMapIntensity=fut?.22:.12; plate.material.roughness=fut?.55:.8;
   if(ground) ground.material.opacity=fut?.32:.18;
   useBloom=fut&&!!composer;
+  futureScene(fut);
 }
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme","data-style"]});
@@ -866,6 +1004,7 @@ function showGhost(h, erase){
   if(!fits(x,y,z,w,d)){ ghost.visible=false; return; }
   ghost.position.set(x+O+w/2,y+.5,z+O+d/2); ghost.scale.set(w,1,d);
   ghost.material.color.set(COLORS[color][2]); ghost.visible=true;
+  if(isFut()) $("hud").textContent=`X ${String(x).padStart(3,"0")}  ·  Y ${String(y).padStart(3,"0")}  ·  Z ${String(z).padStart(3,"0")}  ·  ${w}×${d}  ·  GRID ${N}`;
 }
 let lastHover=null;
 function bindPointer(){
@@ -880,7 +1019,7 @@ function bindPointer(){
     const h=hitAt(e); if(!h) return;
     const erase = mode==="erase"||b===2||e.shiftKey;
     if(erase){ if(h.remove!=null) mutate(()=>removeBrick(h.remove)); }
-    else { const [x,y,z,w,d]=anchorFor(h.cell); if(fits(x,y,z,w,d)) mutate(()=>addBrick(x,y,z,w,d,color)); else say("That brick doesn't fit there. Try another spot, a smaller size, or Rotate."); }
+    else { const [x,y,z,w,d]=anchorFor(h.cell); if(fits(x,y,z,w,d)) mutate(()=>addBrick(x,y,z,w,d,color)), fxPlace(x,y,z,w,d); else say("That brick doesn't fit there. Try another spot, a smaller size, or Rotate."); }
     if(e.pointerType==="mouse") showGhost(hitAt(e), erase);
   });
 }
@@ -1023,6 +1162,7 @@ function loop(){
   if(scene.fog){ const dd=camera.position.distanceTo(controls.target); scene.fog.near=dd*1.1+N*.35; scene.fog.far=dd*2.8+N*1.4; }
   controls.update();
   if(guide && guideGhosts){ const o=REDUCED?.35:.24+.16*Math.sin(performance.now()/280); for(const k in ghostMats) ghostMats[k].opacity=o; }
+  { const nowT=performance.now(); futureTick(Math.min(.05,(nowT-(window.__ft||nowT))/1000)); window.__ft=nowT; }
   if(useBloom&&composer) composer.render(); else renderer.render(scene,camera);
   if(miniGroup){ miniGroup.rotation.y += .01; mini.render(miniScene,miniCam); }
 }
@@ -1641,7 +1781,14 @@ function applyThemeSetting(){
   document.querySelectorAll("[data-th]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.th===settings.theme));
   const fs=$("futSw"), fb=$("futBtn"); if(fs) fs.setAttribute("aria-checked",!!settings.future); if(fb) fb.setAttribute("aria-pressed",!!settings.future);
 }
-function toggleFuture(){ settings.future=!settings.future; saveSettings(); applyThemeSetting();
+function bootSequence(){
+  const b=$("boot"); if(!b||REDUCED) return;
+  const lines=["INITIALISING HOLO GRID","CALIBRATING STUDS","NEON SYSTEMS ONLINE"]; let i=0;
+  b.hidden=false; $("bootTxt").textContent=lines[0];
+  const iv=setInterval(()=>{ i++; if(i<lines.length) $("bootTxt").textContent=lines[i]; },380);
+  setTimeout(()=>{ clearInterval(iv); b.hidden=true; },1450);
+}
+function toggleFuture(){ settings.future=!settings.future; saveSettings(); applyThemeSetting(); if(settings.future) bootSequence();
   say(settings.future?"Future mode on. Switch it off any time with the ✦ Future button.":"Future mode off. Back to the classic look."); }
 applyThemeSetting();
 
