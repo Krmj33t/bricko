@@ -1,0 +1,2324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Bricko</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Layout: 3D build plate as the workbench, task card pinned in its corner, tool drawer beside, saved builds shelf below */
+/* Palette: black bands, toy yellow, crisp white cards */
+:root{
+  --bg:#f5f5f2; --surface:#ffffff; --surface-2:#ecece8; --ink:#141414; --muted:#5d5d58;
+  --accent:#ffcf00; --accent-ink:#141414; --accent-line:#141414; --focus:#141414;
+  --band:#111111; --band-ink:#ffffff; --band-muted:#bdbdb6; --band-2:#262626;
+  --line:#dcdcd6; --good:#1f9d55; --danger:#d0282f;
+  --stage:#e2e0d6; --stage-top:#fbfaf6; --plate:#c9c7bd; --plate-line:#cdcbc1;
+  --dot:#e4e3dc; --band-dot:#232323; --accent-deep:#c99a00; --lift:rgba(30,25,0,.16);
+  --display:"Bowlby One","Arial Black",Impact,sans-serif;
+  --body:"Lexend",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"DM Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b0b0b; --surface:#171717; --surface-2:#222222; --ink:#f2f2ee; --muted:#a3a39b;
+  --accent:#ffcf00; --accent-ink:#141414; --accent-line:#ffcf00; --focus:#ffcf00;
+  --band:#000000; --band-ink:#ffffff; --band-muted:#a8a8a0; --band-2:#1e1e1e;
+  --line:#2e2e2b; --good:#4fd18b; --danger:#ff6a70;
+  --stage:#0b0b0a; --stage-top:#252522; --plate:#2c2c29; --plate-line:#272725;
+  --dot:#141414; --band-dot:#171717; --accent-deep:#b58a00; --lift:rgba(0,0,0,.55); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b0b0b; --surface:#171717; --surface-2:#222222; --ink:#f2f2ee; --muted:#a3a39b;
+  --accent:#ffcf00; --accent-ink:#141414; --accent-line:#ffcf00; --focus:#ffcf00;
+  --band:#000000; --band-ink:#ffffff; --band-muted:#a8a8a0; --band-2:#1e1e1e;
+  --line:#2e2e2b; --good:#4fd18b; --danger:#ff6a70;
+  --stage:#0b0b0a; --stage-top:#252522; --plate:#2c2c29; --plate-line:#272725;
+  --dot:#141414; --band-dot:#171717; --accent-deep:#b58a00; --lift:rgba(0,0,0,.55); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;background:var(--band);color:var(--band-ink);border-radius:18px;padding:22px 22px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,40px);line-height:1;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.sub{color:var(--band-muted);margin:6px 0 0;font-size:14px}
+.btn{font:500 14px var(--body);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:8px 13px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--accent-line)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{background:#ffd931;border-color:var(--accent)}
+.btn.armed{border-color:var(--danger);color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--band-2);border:0;border-radius:14px;padding:5px;min-width:min(100%,320px)}
+.modes button{display:grid;gap:1px;text-align:left;border:0;border-radius:10px;padding:8px 12px;background:none;color:var(--band-ink);cursor:pointer;font-family:var(--body)}
+.modes b{font:600 15px var(--body)}
+.modes small{font-size:12px;color:var(--band-muted)}
+.modes button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.modes button[aria-pressed="true"] small{color:var(--accent-ink);opacity:.8}
+.bench{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:18px;align-items:start}
+@media (max-width:900px){.bench{grid-template-columns:minmax(0,1fr)}}
+
+.stage{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;display:grid}
+.view{position:relative;height:min(64vh,620px);min-height:360px;background:var(--stage);touch-action:none}
+.view canvas.main{display:block;width:100%;height:100%;cursor:crosshair}
+.hint{position:absolute;left:12px;bottom:12px;font:400 11px/1.5 var(--mono);color:var(--muted);background:var(--surface);
+  border:1px solid var(--line);border-radius:8px;padding:5px 9px;pointer-events:none;max-width:calc(100% - 24px)}
+.count{position:absolute;left:12px;top:12px;font:500 12px var(--mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-variant-numeric:tabular-nums}
+
+.task{position:absolute;right:12px;top:12px;width:190px;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;
+  overflow:hidden;box-shadow:0 8px 24px rgba(10,20,40,.14);display:grid}
+.task.done{border-color:var(--good)}
+.task-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:8px 10px 0}
+.task-top b{font:600 13px var(--body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.task-top code{font:400 10px var(--mono);color:var(--muted);flex:none}
+.mini{width:100%;aspect-ratio:1;display:block;max-width:100%}
+.meter{height:6px;background:var(--surface-2);margin:0 10px;border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--ink);transition:width .25s}
+.task.done .meter i{background:var(--good)}
+.task-foot{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:7px 10px 9px;font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.task-foot .ok{color:var(--good);font-weight:500}
+.task .btn{padding:4px 8px;font-size:12px;border-radius:8px}
+@media (max-width:560px){.task{width:128px}.task-top code{display:none}.task-foot{flex-wrap:wrap}}
+
+.savebar{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px;border-top:1.5px solid var(--line);align-items:center}
+.savebar input{flex:1 1 180px;min-width:0;font:500 15px var(--body);padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.savebar input:focus{outline:none;border-color:var(--accent-line)}
+.status{flex-basis:100%;font-size:13px;color:var(--muted);min-height:1.2em;margin:0}
+
+.drawer{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:18px}
+.group h3{margin:0 0 8px;font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{font:600 14px var(--body);padding:9px;border:0;background:var(--bg);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.sws{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.sw{aspect-ratio:1;border-radius:8px;border:2px solid rgba(0,0,0,.15);cursor:pointer;padding:0;box-shadow:inset 0 -4px 0 rgba(0,0,0,.18)}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--accent-line),inset 0 -4px 0 rgba(0,0,0,.18)}
+.sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.szb{display:grid;justify-items:center;align-content:center;gap:6px;min-height:84px;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:8px 6px;cursor:pointer;color:var(--ink)}
+.szb[aria-pressed="true"]{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line) inset}
+.pips{display:grid;gap:2px;padding:3px;border-radius:4px;background:var(--c);box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
+.pips i{display:block;width:6px;height:6px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.35)}
+.szb .lbl{font:500 12px var(--mono);color:var(--muted)}
+.tasks{display:grid;gap:6px}
+.skip-anim{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:3;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+#expDlg{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:0 24px 60px rgba(0,0,0,.35)}
+#expDlg::backdrop{background:rgba(0,0,0,.55)}
+.songlist{display:grid;gap:6px;margin-top:8px;max-height:210px;overflow:auto}
+.song{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:10px;padding:2px 4px 2px 2px;background:var(--bg)}
+.song.on{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line) inset}
+.song-play{flex:1;min-width:0;text-align:left;border:0;background:none;color:var(--ink);font:500 13px var(--body);padding:7px 6px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.song small{color:var(--muted);font:500 11px var(--mono);flex:none;font-variant-numeric:tabular-nums}
+.song-del{border:0;background:none;color:var(--muted);cursor:pointer;font:500 12px var(--body);padding:6px 8px;border-radius:6px;flex:none}
+.song-del:hover,.song-del.armed{color:var(--danger)}
+.joy{position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:14px;width:112px;height:112px;border-radius:50%;
+  background:color-mix(in srgb,var(--surface) 55%,transparent);border:2px solid color-mix(in srgb,var(--ink) 25%,transparent);
+  touch-action:none;-webkit-user-select:none;user-select:none;z-index:2}
+.joy::before{content:"";position:absolute;inset:30%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--ink) 25%,transparent)}
+.joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:var(--accent);
+  box-shadow:0 3px 10px rgba(0,0,0,.3),inset 0 -4px 0 rgba(0,0,0,.18);transition:transform .12s ease-out}
+.joy.active i{transition:none}
+.view.has-joy .hint{max-width:calc(100% - 150px)}
+.origwrap{position:relative;overflow:hidden;border-radius:6px;line-height:0}
+.origwrap img{width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none}
+.piccmp.subject{grid-template-columns:1fr}
+.piccmp.subject .origwrap{cursor:crosshair;touch-action:none}
+.selbox{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,.5);border-radius:3px;pointer-events:none}
+.stepcols{display:grid;gap:6px;margin-bottom:12px}
+.stepcols-h{margin:0;font-size:12px;color:var(--muted)}
+.stepcol{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 8px;cursor:pointer;color:var(--ink);font:500 13px var(--body);text-align:left}
+.stepcol i{width:24px;height:24px;border-radius:6px;flex:none;box-shadow:inset 0 -3px 0 rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.12)}
+.stepcol small{margin-left:auto;color:var(--muted);font:500 12px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stepcol[aria-pressed="true"]{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line) inset}
+.stepcol.done{opacity:.45}
+.sws:not(.all) .sw.xtra{display:none}
+.sws.all{grid-template-columns:repeat(13,1fr);gap:3px;max-height:340px;overflow:auto;padding:3px}
+.sws.all .sw{border-radius:4px;border-width:1px;box-shadow:none}
+.sws.all .sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--accent-line)}
+.more-col{border:0;background:none;color:var(--ink);text-decoration:underline;font:500 13px var(--body);cursor:pointer;padding:8px 0 0}
+.piccmp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.piccmp figure{margin:0;display:grid;gap:4px;min-width:0}
+.piccmp figcaption{font-size:11px;color:var(--muted);text-align:center}
+.piccmp img,.piccmp canvas{width:100%;height:auto;border-radius:6px;background:var(--surface-2);display:block}
+.piccmp canvas{image-rendering:pixelated}
+.plate-lbl{margin:12px 0 6px;font-size:12px;color:var(--muted)}
+.plates{grid-template-columns:repeat(6,1fr)}
+.picopt{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;font-size:13px;font-weight:500}
+.picopt small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.pic-lbl{margin:10px 0 6px;font-size:12px;color:var(--muted)}
+.task.guiding{width:236px;max-height:calc(100% - 24px);overflow:auto}
+.task.guiding .mini{aspect-ratio:23/14}
+@media (max-width:560px){.task.guiding{width:min(210px,58%)}.task.guiding .task-top code{display:none}}
+.gx{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;flex:none}
+.guide{display:grid;gap:8px;padding:0 10px 10px}
+.guide-h{margin:0;font:600 10px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.guide-parts{display:flex;flex-wrap:wrap;gap:6px}
+.part{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--bg);border-radius:8px;padding:4px 7px;cursor:pointer;color:var(--ink);font:500 12px var(--mono);font-variant-numeric:tabular-nums}
+.part[aria-pressed="true"]{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line) inset}
+.part.done{opacity:.4}
+.part .pips{padding:2px;gap:2px}
+.part .pips i{width:5px;height:5px}
+.guide-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.guide .btn{padding:6px;font-size:12px;justify-content:center}
+.wrong{color:var(--danger)}
+.set-btn{background:var(--band-2);border-color:var(--band-2);color:var(--band-ink)}
+.set-btn:hover{border-color:var(--accent)}
+#setDlg{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:0 24px 60px rgba(0,0,0,.35)}
+#setDlg::backdrop{background:rgba(0,0,0,.55)}
+.set{display:grid;gap:20px;padding:20px}
+.set-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.set-head h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.set-x{border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}
+.set-sec{display:grid;gap:10px}
+.set-sec h3{margin:0;font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.set .seg3{margin-top:0}
+.set-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-weight:500}
+.switch{width:52px;height:30px;border-radius:15px;border:0;background:var(--line);position:relative;cursor:pointer;flex:none;padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(22px)}
+@media (prefers-reduced-motion:reduce){.switch::after{transition:none}}
+.linkrow{display:flex;gap:8px}
+.linkrow input{flex:1;min-width:0;font:500 14px var(--body);padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.linkrow input:focus{outline:none;border-color:var(--accent-line)}
+.set-note{margin:0;font-size:12px;color:var(--muted)}
+.vol{display:flex;align-items:center;gap:12px}
+.vol input{flex:1;min-width:0;accent-color:var(--accent)}
+.vol output{font:500 13px var(--mono);width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.now{margin:0;font-size:13px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1.5px solid var(--line);overflow-wrap:anywhere}
+.now.err{color:var(--danger);border-color:var(--danger)}
+.set-foot{display:flex;justify-content:flex-end}
+#ytHost{position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden}
+.acct-bar{display:flex;align-items:center;gap:10px;margin-left:auto}
+.who{color:var(--band-muted);font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who b{color:var(--band-ink);font-weight:600}
+.acct-btn{background:var(--band-2);border-color:var(--band-2);color:var(--band-ink)}
+.acct-btn:hover{border-color:var(--accent)}
+dialog{border:0;padding:0;border-radius:18px;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 32px));box-shadow:0 24px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+.dlg{display:grid;gap:14px;padding:20px}
+.dlg-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dlg-head h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.x{border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}
+.fld{display:grid;gap:5px;font-size:13px;font-weight:500;color:var(--muted)}
+.fld input{font:500 15px var(--body);padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);min-width:0}
+.fld input:focus{outline:none;border-color:var(--accent-line)}
+.dlg-msg{margin:0;font-size:13px;min-height:1.2em;color:var(--muted)}
+.dlg-msg.err{color:var(--danger)}
+.dlg-msg.ok{color:var(--good)}
+.wide{width:100%;justify-content:center;padding-block:11px}
+.linkbtn{border:0;background:none;color:var(--ink);text-decoration:underline;font:500 13px var(--body);cursor:pointer;justify-self:center}
+.dlg-note{margin:0;font-size:12px;color:var(--muted);text-align:center}
+.copybtn{margin-left:8px}
+.upload{width:100%;justify-content:center}
+.picprev{display:block;max-width:100%;margin:10px auto 0;border-radius:6px;image-rendering:pixelated;background:var(--surface-2)}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid var(--line);border-radius:10px;overflow:hidden;margin-top:10px}
+.seg3 button{font:500 13px var(--body);padding:8px 4px;border:0;background:var(--bg);color:var(--muted);cursor:pointer}
+.seg3 button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.picnote{font-size:12px;color:var(--muted);margin:8px 0 0}
+#picGuide,#picBuild{width:100%;justify-content:center;margin-top:10px}
+.titem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:500 14px var(--body);color:var(--ink);background:var(--bg);
+  border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer}
+.titem[aria-pressed="true"]{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line) inset}
+.titem .n{font:400 11px var(--mono);color:var(--muted);width:32px;flex:none;white-space:nowrap}
+.titem .nm{flex:1;min-width:0}
+.titem .k{font:400 11px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.titem .tick{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);flex:none;display:grid;place-items:center;font-size:11px;color:transparent}
+.titem.done .tick{background:var(--good);border-color:var(--good);color:#fff}
+.tally{font:500 12px var(--mono);color:var(--muted);margin-left:6px;text-transform:none;letter-spacing:0}
+
+.shelf{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:16px}
+.shelf-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
+.shelf h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.where{font-size:13px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{border:1.5px solid var(--line);border-radius:14px;background:var(--bg);display:grid;cursor:pointer;overflow:hidden;color:var(--ink)}
+.card[data-active="true"]{border-color:var(--accent-line)}
+.card .thumb{background:var(--surface-2);aspect-ratio:1;display:grid;place-items:center}
+.card .thumb img{width:100%;height:100%;object-fit:contain}
+.card .meta{padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.card .name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.card .sz{font:400 11px var(--mono);color:var(--muted)}
+.del{font:500 12px var(--body);border:0;background:none;color:var(--muted);cursor:pointer;padding:4px 6px;border-radius:6px;flex:none}
+.del:hover,.del.armed{color:var(--danger)}
+.empty{border:2px dashed var(--line);border-radius:14px;padding:24px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);margin-bottom:4px}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted)}
+
+/* ===== polish: toy studio ===== */
+body{background:radial-gradient(circle,var(--dot) 1.1px,transparent 1.6px) 0 0/22px 22px,var(--bg)}
+header{position:relative;overflow:hidden;padding:20px 22px;border-radius:22px;
+  background:radial-gradient(circle,var(--band-dot) 2.2px,transparent 2.8px) 0 0/16px 16px,var(--band);
+  box-shadow:0 20px 40px -24px var(--lift)}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.logo{width:54px;height:54px;flex:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.45))}
+@media (prefers-reduced-motion:no-preference){ .logo{transition:transform .35s cubic-bezier(.34,1.56,.64,1)} header:hover .logo{transform:rotate(-8deg) translateY(-2px)} }
+h1{letter-spacing:.01em}
+h1 span{display:inline-block;color:var(--accent);text-shadow:0 3px 0 var(--accent-deep)}
+.modes{box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.modes button{transition:background .15s,transform .12s}
+.modes button:not([aria-pressed="true"]):hover{background:rgba(255,255,255,.06)}
+.modes button[aria-pressed="true"]{box-shadow:inset 0 -3px 0 rgba(0,0,0,.18),0 4px 14px -6px rgba(255,207,0,.6)}
+
+.stage,.drawer,.shelf{border-width:1px;border-radius:22px;box-shadow:0 1px 0 rgba(0,0,0,.02),0 18px 40px -26px var(--lift)}
+.view{background:linear-gradient(var(--stage-top),var(--stage))}
+@media (min-width:901px){
+  .stage{position:sticky;top:16px}
+  .view{height:clamp(420px,calc(100vh - 118px),840px)}
+}
+.count,.hint,.task{background:color-mix(in srgb,var(--surface) 74%,transparent);
+  -webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);
+  border-color:color-mix(in srgb,var(--line) 70%,transparent)}
+.count,.hint{border-radius:999px;padding:6px 12px}
+.task{border-radius:18px;box-shadow:0 22px 44px -18px var(--lift)}
+
+.btn{box-shadow:0 2px 0 var(--line);transition:transform .08s ease,box-shadow .08s ease,background .15s,border-color .15s}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 0 var(--line)}
+.btn:active:not(:disabled){transform:translateY(1px);box-shadow:0 1px 0 var(--line)}
+.btn.primary{box-shadow:0 3px 0 var(--accent-deep),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn.primary:hover:not(:disabled){box-shadow:0 4px 0 var(--accent-deep),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn.primary:active:not(:disabled){box-shadow:0 1px 0 var(--accent-deep)}
+.btn:disabled{box-shadow:none}
+.set-btn,.acct-btn{box-shadow:none}
+.seg button,.seg3 button,.plates button{transition:background .15s,color .15s}
+.seg button[aria-pressed="true"],.seg3 button[aria-pressed="true"]{box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+.seg,.seg3{background:var(--bg)}
+
+.drawer{gap:0;padding:6px 16px}
+.drawer .group{padding-block:16px}
+.drawer .group + .group{border-top:1px dashed var(--line)}
+.group h3{display:flex;align-items:center;gap:8px;color:var(--ink);letter-spacing:.1em}
+.group h3::before{content:"";width:12px;height:12px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 30%,#fff6b8 0 18%,var(--accent) 46%,var(--accent-deep) 100%);
+  box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.tally{margin-left:auto}
+
+.sw{position:relative;border-radius:9px;border:0;box-shadow:inset 0 -4px 0 rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.15);transition:transform .1s}
+.sw::after{content:"";position:absolute;inset:27%;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),rgba(255,255,255,.08) 60%,rgba(0,0,0,.06));
+  box-shadow:0 1.5px 1.5px rgba(0,0,0,.28)}
+.sw:hover{transform:translateY(-2px)}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--accent-line),inset 0 -4px 0 rgba(0,0,0,.2)}
+.sws.all .sw::after{display:none}
+.szb{transition:transform .12s,box-shadow .12s;box-shadow:0 2px 0 var(--line)}
+.szb:hover{transform:translateY(-2px);box-shadow:0 4px 0 var(--line)}
+.szb[aria-pressed="true"]{box-shadow:0 0 0 1px var(--accent-line) inset,0 3px 0 var(--accent-deep)}
+.pips{border-radius:5px}
+.titem{transition:transform .12s,border-color .15s}
+.titem:hover{transform:translateX(2px)}
+.titem.done .tick{background:var(--accent);border-color:var(--accent-deep);color:var(--accent-ink)}
+
+.shelf h2{display:flex;align-items:center;gap:10px}
+.card{transition:transform .15s,box-shadow .15s;box-shadow:0 2px 0 var(--line)}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 24px -14px var(--lift)}
+.card .thumb{background:linear-gradient(var(--stage-top),var(--stage))}
+.empty{display:grid;justify-items:center;gap:4px;padding:30px 24px}
+.empty-ico{width:58px;height:58px;margin-bottom:6px;filter:drop-shadow(0 6px 8px var(--lift))}
+@media (prefers-reduced-motion:reduce){ .btn,.sw,.szb,.titem,.card{transition:none} .btn:hover,.sw:hover,.szb:hover,.titem:hover,.card:hover{transform:none} }
+
+/* ===== Future mode: neon yellow on deep black ===== */
+.set-sub{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+.fut-btn{background:var(--band-2);border-color:var(--band-2);color:var(--band-ink);box-shadow:none;font-weight:600}
+.fut-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);box-shadow:0 0 14px var(--glow),inset 0 0 10px rgba(255,212,0,.15)}
+:root{--glow:rgba(255,207,0,.35)}
+:root[data-style="future"]{
+  --bg:#05060a; --surface:#0d0f16; --surface-2:#161924; --ink:#f4f4ef; --muted:#9b9eab;
+  --accent:#ffd400; --accent-ink:#0a0a0a; --accent-line:#ffd400; --focus:#ffd400;
+  --band:#07080d; --band-ink:#ffffff; --band-muted:#a6a8b4; --band-2:#151823;
+  --line:#272b3a; --good:#5cf2a0; --danger:#ff5d73;
+  --stage:#020306; --stage-top:#141827; --plate:#0f121b; --plate-line:#ffd400;
+  --dot:transparent; --band-dot:rgba(255,212,0,.07); --accent-deep:#a88a00; --lift:rgba(255,212,0,.16); --glow:rgba(255,212,0,.45);
+  --display:"Orbitron","Bowlby One","Arial Black",sans-serif;
+  color-scheme:dark;
+}
+:root[data-style="future"] body{
+  background:
+    radial-gradient(1100px 520px at 50% -8%,rgba(255,212,0,.13),transparent 62%),
+    linear-gradient(rgba(255,212,0,.045) 1px,transparent 1px) 0 0/44px 44px,
+    linear-gradient(90deg,rgba(255,212,0,.045) 1px,transparent 1px) 0 0/44px 44px,
+    var(--bg);
+  background-attachment:fixed}
+:root[data-style="future"] h1,:root[data-style="future"] .shelf h2,:root[data-style="future"] .set-head h2{font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+:root[data-style="future"] h1{text-shadow:0 0 22px rgba(255,212,0,.35)}
+:root[data-style="future"] h1 span{text-shadow:0 0 14px var(--glow),0 0 30px rgba(255,212,0,.5)}
+:root[data-style="future"] header{border:1px solid rgba(255,212,0,.22);box-shadow:0 0 0 1px rgba(255,212,0,.05),0 24px 60px -30px var(--glow)}
+:root[data-style="future"] header::after{content:"";position:absolute;left:8%;right:8%;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 12px var(--accent)}
+:root[data-style="future"] .logo{filter:drop-shadow(0 0 10px rgba(255,212,0,.55)) drop-shadow(0 6px 8px rgba(0,0,0,.6))}
+@media (prefers-reduced-motion:no-preference){
+  :root[data-style="future"] .logo{animation:futPulse 3.2s ease-in-out infinite}
+  @keyframes futPulse{50%{filter:drop-shadow(0 0 18px rgba(255,212,0,.85)) drop-shadow(0 6px 8px rgba(0,0,0,.6))}}
+}
+/* glass panels with HUD corner marks */
+:root[data-style="future"] .stage,:root[data-style="future"] .drawer,:root[data-style="future"] .shelf{
+  --c:rgba(255,212,0,.85);
+  background:
+    linear-gradient(var(--c),var(--c)) top left/18px 2px no-repeat,linear-gradient(var(--c),var(--c)) top left/2px 18px no-repeat,
+    linear-gradient(var(--c),var(--c)) top right/18px 2px no-repeat,linear-gradient(var(--c),var(--c)) top right/2px 18px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom left/18px 2px no-repeat,linear-gradient(var(--c),var(--c)) bottom left/2px 18px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom right/18px 2px no-repeat,linear-gradient(var(--c),var(--c)) bottom right/2px 18px no-repeat,
+    rgba(13,15,22,.78);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,212,0,.16);border-radius:10px;
+  box-shadow:0 0 0 1px rgba(255,212,0,.04),0 30px 70px -36px var(--glow)}
+:root[data-style="future"] .view{border-radius:0}
+:root[data-style="future"] .view::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px)}
+:root[data-style="future"] .count,:root[data-style="future"] .hint,:root[data-style="future"] .task{
+  background:rgba(8,10,16,.62);border-color:rgba(255,212,0,.28);color:var(--ink);border-radius:6px}
+:root[data-style="future"] .count{color:var(--accent);text-shadow:0 0 8px var(--glow);letter-spacing:.06em}
+:root[data-style="future"] .task{box-shadow:0 0 26px -8px var(--glow)}
+:root[data-style="future"] .meter i{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+/* controls */
+:root[data-style="future"] .btn{background:rgba(255,255,255,.03);border:1px solid rgba(255,212,0,.24);color:var(--ink);box-shadow:none;border-radius:6px}
+:root[data-style="future"] .btn:hover:not(:disabled){border-color:var(--accent);box-shadow:0 0 0 1px rgba(255,212,0,.35),0 0 18px -2px var(--glow);transform:none}
+:root[data-style="future"] .btn:active:not(:disabled){transform:scale(.97)}
+:root[data-style="future"] .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 0 20px -2px var(--glow)}
+:root[data-style="future"] .seg,:root[data-style="future"] .seg3{background:rgba(255,255,255,.02);border-color:rgba(255,212,0,.2);border-radius:6px}
+:root[data-style="future"] .seg button[aria-pressed="true"],:root[data-style="future"] .seg3 button[aria-pressed="true"],
+:root[data-style="future"] .modes button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:0 0 18px -2px var(--glow)}
+:root[data-style="future"] .modes{border:1px solid rgba(255,212,0,.18);border-radius:8px}
+:root[data-style="future"] .modes button{border-radius:5px}
+:root[data-style="future"] .group h3{font-family:"Orbitron",var(--body);font-weight:600;font-size:11px;letter-spacing:.18em;color:var(--accent)}
+:root[data-style="future"] .group h3::before{width:9px;height:9px;border-radius:2px;transform:rotate(45deg);background:var(--accent);box-shadow:0 0 10px var(--accent)}
+:root[data-style="future"] .drawer .group + .group{border-top:1px solid rgba(255,212,0,.12)}
+:root[data-style="future"] .szb,:root[data-style="future"] .titem,:root[data-style="future"] .card,:root[data-style="future"] .part,:root[data-style="future"] .stepcol,:root[data-style="future"] .song{
+  background:rgba(255,255,255,.025);border-color:rgba(255,212,0,.16);box-shadow:none;border-radius:6px}
+:root[data-style="future"] .szb[aria-pressed="true"],:root[data-style="future"] .titem[aria-pressed="true"],:root[data-style="future"] .part[aria-pressed="true"],:root[data-style="future"] .stepcol[aria-pressed="true"]{
+  border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset,0 0 16px -4px var(--glow)}
+:root[data-style="future"] .sw{border-radius:5px}
+:root[data-style="future"] .sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent),0 0 16px var(--glow)}
+:root[data-style="future"] .card .thumb{background:radial-gradient(circle at 50% 40%,#1a1e2e,#05060a)}
+:root[data-style="future"] .savebar input,:root[data-style="future"] .linkrow input,:root[data-style="future"] .fld input{background:rgba(0,0,0,.35);border-color:rgba(255,212,0,.2);border-radius:6px}
+:root[data-style="future"] #setDlg,:root[data-style="future"] #expDlg,:root[data-style="future"] #acctDlg{
+  background:rgba(10,12,18,.92);border:1px solid rgba(255,212,0,.3);box-shadow:0 0 60px -18px var(--glow);border-radius:10px}
+:root[data-style="future"] .joy{border-color:rgba(255,212,0,.5);box-shadow:0 0 22px -4px var(--glow);background:rgba(8,10,16,.45)}
+:root[data-style="future"] .joy i{box-shadow:0 0 18px var(--accent)}
+:root[data-style="future"] .empty{border-color:rgba(255,212,0,.22)}
+:root[data-style="future"] .fut-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:rgba(255,212,0,.08);box-shadow:0 0 18px -2px var(--glow),inset 0 0 12px rgba(255,212,0,.12);text-shadow:0 0 8px var(--glow)}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="brickSym" viewBox="0 0 64 64">
+    <path d="M6 22 L32 35 L32 57 L6 44 Z" fill="#e2aa00"/>
+    <path d="M32 35 L58 22 L58 44 L32 57 Z" fill="#c38f00"/>
+    <path d="M32 9 L58 22 L32 35 L6 22 Z" fill="#ffcf00"/>
+    <g fill="#d9a300">
+      <ellipse cx="32" cy="16" rx="5.6" ry="2.9"/><rect x="26.4" y="13" width="11.2" height="3"/>
+      <ellipse cx="19" cy="22" rx="5.6" ry="2.9"/><rect x="13.4" y="19" width="11.2" height="3"/>
+      <ellipse cx="45" cy="22" rx="5.6" ry="2.9"/><rect x="39.4" y="19" width="11.2" height="3"/>
+      <ellipse cx="32" cy="28.5" rx="5.6" ry="2.9"/><rect x="26.4" y="25.5" width="11.2" height="3"/>
+    </g>
+    <g fill="#ffe36b">
+      <ellipse cx="32" cy="13" rx="5.6" ry="2.9"/><ellipse cx="19" cy="19" rx="5.6" ry="2.9"/>
+      <ellipse cx="45" cy="19" rx="5.6" ry="2.9"/><ellipse cx="32" cy="25.5" rx="5.6" ry="2.9"/>
+    </g>
+  </symbol>
+</svg>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg class="logo" aria-hidden="true"><use href="#brickSym"/></svg>
+      <div>
+      <h1>Brick<span>o</span></h1>
+      <p class="sub" id="sub">Build in 3D with blocks. Match the model in the corner to finish each task.</p>
+      </div>
+    </div>
+    <div class="acct-bar">
+      <span class="who" id="who" hidden></span>
+      <button class="btn fut-btn" type="button" id="futBtn" aria-pressed="false" title="Turn Future mode on or off">✦ Future</button>
+      <button class="btn set-btn" type="button" id="setBtn">⚙ Settings</button>
+      <button class="btn acct-btn" type="button" id="acctBtn">Sign in</button>
+    </div>
+    <div class="modes" role="group" aria-label="How do you want to play?">
+      <button type="button" id="playFree" aria-pressed="false"><b>Free build</b><small>Make anything</small></button>
+      <button type="button" id="playTasks" aria-pressed="true"><b>Tasks</b><small>Copy the model</small></button>
+    </div>
+  </header>
+
+  <div class="bench">
+    <section class="stage" aria-label="Build plate">
+      <div class="view" id="view">
+        <span class="count" id="count">0 blocks</span>
+        <div class="task" id="taskCard">
+          <div class="task-top"><b id="taskName">Task</b><code id="taskCode"></code><button class="gx" type="button" id="gExit" hidden aria-label="Stop building step by step">✕</button></div>
+          <canvas class="mini" id="mini" width="200" height="200" aria-label="Target model"></canvas>
+          <div class="meter"><i id="meter"></i></div>
+          <div class="task-foot"><span id="taskProg">0 / 0</span><button class="btn" type="button" id="nextBtn" hidden>Next →</button></div>
+          <div class="guide" id="guideBox" hidden>
+            <p class="guide-h">Bricks for this step</p>
+            <div class="guide-parts" id="guideParts"></div>
+            <div class="guide-btns"><button class="btn" type="button" id="gBack">◀ Back</button><button class="btn" type="button" id="gAuto">Place for me</button></div>
+            <button class="btn primary" type="button" id="gNext" hidden>Next step ▶</button>
+          </div>
+        </div>
+        <span class="hint" id="hint">Drag to spin · scroll to zoom · WASD or arrows to move · click to place · right-click to remove · R to rotate</span>
+        <button class="btn skip-anim" type="button" id="skipAnim" hidden>Skip ▶▶</button>
+        <div class="joy" id="joy" hidden aria-label="Move around: drag the circle" role="application"><i id="joyKnob"></i></div>
+      </div>
+      <form class="savebar" id="saveForm">
+        <input id="nameInput" aria-label="Build name" maxlength="40" placeholder="Name this build" autocomplete="off">
+        <button class="btn primary" type="submit" id="saveBtn">Save build</button>
+        <button class="btn" type="button" id="copyBtn" hidden>Save as copy</button>
+        <button class="btn" type="button" id="exportBtn">⬇ Export 3D</button>
+        <p class="status" id="status" role="status"></p>
+      </form>
+    </section>
+
+    <aside class="drawer" aria-label="Tools">
+      <div class="group">
+        <h3>Tool</h3>
+        <div class="seg" role="group" aria-label="Tool">
+          <button type="button" id="modeBuild" aria-pressed="true">Build</button>
+          <button type="button" id="modeErase" aria-pressed="false">Remove</button>
+        </div>
+        <div class="row">
+          <button class="btn" type="button" id="undoBtn" disabled>↶ Undo</button>
+          <button class="btn" type="button" id="clearBtn">Clear plate</button>
+        </div>
+        <p class="plate-lbl">Plate size (studs)</p>
+        <div class="seg3 plates" id="plates" role="group" aria-label="Plate size"></div>
+      </div>
+      <div class="group">
+        <h3>Brick size</h3>
+        <div class="sizes" id="sizes"></div>
+        <div class="row"><button class="btn" type="button" id="turnBtn">⟳ Rotate brick</button></div>
+      </div>
+      <div class="group">
+        <h3>Brick color</h3>
+        <div class="stepcols" id="stepCols" hidden></div>
+        <div class="sws" id="sws"></div>
+        <button class="linkbtn more-col" type="button" id="moreCol" aria-expanded="false">Show all colors</button>
+      </div>
+      <div class="group" id="picGroup">
+        <h3>Picture to bricks</h3>
+        <label class="btn upload" for="picFile">📷 Upload a picture</label>
+        <input type="file" id="picFile" accept="image/*" hidden>
+        <div id="picOpts" hidden>
+          <div class="piccmp">
+            <figure><div class="origwrap" id="origWrap"><img id="picOrig" alt="Your picture" draggable="false"><div class="selbox" id="selBox" hidden></div></div><figcaption id="origCap">Your picture</figcaption></figure>
+            <figure><canvas id="picPrev" aria-label="Brick preview of your picture"></canvas><figcaption>In bricks</figcaption></figure>
+          </div>
+          <div class="seg3" role="group" aria-label="Build style">
+            <button type="button" data-ps="wall" aria-pressed="true">Standing</button>
+            <button type="button" data-ps="flat" aria-pressed="false">Flat</button>
+            <button type="button" data-ps="relief" aria-pressed="false">3D relief</button>
+          </div>
+          <p class="pic-lbl">Detail (studs across)</p>
+          <div class="seg3" role="group" aria-label="Detail">
+            <button type="button" data-pz="24" aria-pressed="false">24</button>
+            <button type="button" data-pz="32" aria-pressed="false">32</button>
+            <button type="button" data-pz="48" aria-pressed="true">48</button>
+            <button type="button" data-pz="64" aria-pressed="false">64</button>
+            <button type="button" data-pz="96" aria-pressed="false">96</button>
+            <button type="button" data-pz="128" aria-pressed="false">128</button>
+          </div>
+          <p class="pic-lbl">Colors</p>
+          <div class="seg3" role="group" aria-label="Colors" style="grid-template-columns:1fr 1fr">
+            <button type="button" data-pc="all" aria-pressed="true">All colors (${0})</button>
+            <button type="button" data-pc="brick" aria-pressed="false">Brick colors (${0})</button>
+          </div>
+          <div class="picopt"><span id="ditherLbl">Smooth shading<small>Blends colors so photos look real</small></span><button class="switch" type="button" role="switch" id="ditherSw" aria-checked="false" aria-labelledby="ditherLbl"></button></div>
+          <p class="pic-lbl">What to build</p>
+          <div class="seg3" role="group" aria-label="What to build">
+            <button type="button" data-bg="keep" aria-pressed="true">Whole picture</button>
+            <button type="button" data-bg="subject" aria-pressed="false">Main subject</button>
+            <button type="button" data-bg="plain" aria-pressed="false">No plain bg</button>
+          </div>
+          <div id="subjHelp" hidden>
+            <p class="set-note" style="margin:8px 0 0">Drag a box around the main thing on your picture. Bricko keeps what's inside and leaves out the background.</p>
+            <button class="linkbtn more-col" type="button" id="resetBox">Reset the box</button>
+          </div>
+          <p class="picnote" id="picNote"></p>
+          <button class="btn primary" type="button" id="picGuide">Build it step by step</button>
+          <button class="btn" type="button" id="picBuild">Build it for me</button>
+        </div>
+      </div>
+      <div class="group" id="taskGroup">
+        <h3>Tasks <span class="tally" id="tally"></span></h3>
+        <div class="tasks" id="tasks"></div>
+        <button class="linkbtn more-col" type="button" id="mixBtn">🎲 Mix up this task</button>
+      </div>
+    </aside>
+  </div>
+
+  <section class="shelf" aria-label="Saved builds">
+    <div class="shelf-head">
+      <h2>Saved builds</h2>
+      <span class="where" id="where">Opening your shelf…</span>
+    </div>
+    <div id="shelf"></div>
+  </section>
+</div>
+
+<dialog id="acctDlg" aria-labelledby="dlgTitle">
+  <form method="dialog" class="dlg" id="acctForm" novalidate>
+    <div class="dlg-head"><h2 id="dlgTitle">Sign in to Bricko</h2><button class="x" type="button" id="dlgClose" aria-label="Close">✕</button></div>
+    <div class="seg dlg-tabs" role="group" aria-label="Account">
+      <button type="button" id="tabIn" aria-pressed="true">Sign in</button>
+      <button type="button" id="tabUp" aria-pressed="false">Create account</button>
+    </div>
+    <label class="fld" id="nameFld" hidden><span>Your name</span><input id="fName" autocomplete="nickname" maxlength="40"></label>
+    <label class="fld"><span>Email</span><input id="fEmail" type="email" autocomplete="email" required></label>
+    <label class="fld" id="pwFld"><span>Password</span><input id="fPass" type="password" autocomplete="current-password" minlength="6" required></label>
+    <p class="dlg-msg" id="dlgMsg" role="status"></p>
+    <button class="btn primary wide" type="submit" id="dlgGo">Sign in</button>
+    <button class="linkbtn" type="button" id="forgotBtn">Forgot your password?</button>
+    <p class="dlg-note">Your builds and finished tasks are saved to your account, so they follow you to any device you sign in on.</p>
+  </form>
+</dialog>
+<dialog id="setDlg" aria-labelledby="setTitle">
+  <div class="set">
+    <div class="set-head"><h2 id="setTitle">Settings</h2><button class="set-x" type="button" id="setClose" aria-label="Close settings">✕</button></div>
+
+    <section class="set-sec">
+      <h3>Appearance</h3>
+      <div class="seg3" role="group" aria-label="Appearance">
+        <button type="button" data-th="system" aria-pressed="true">System</button>
+        <button type="button" data-th="light" aria-pressed="false">Light</button>
+        <button type="button" data-th="dark" aria-pressed="false">Dark</button>
+      </div>
+      <div class="set-row"><span id="futLbl">Future mode<small class="set-sub">Neon glow, holographic bricks and sci-fi panels. Always dark.</small></span><button class="switch" type="button" role="switch" id="futSw" aria-checked="false" aria-labelledby="futLbl"></button></div>
+    </section>
+
+    <section class="set-sec">
+      <h3>Music</h3>
+      <div class="set-row"><span id="musicLbl">Background music</span><button class="switch" type="button" role="switch" id="musicSw" aria-checked="false" aria-labelledby="musicLbl"></button></div>
+      <div class="seg3" role="group" aria-label="What to play" id="srcSeg"></div>
+      <div id="srcTune"><p class="set-note">A calm, looping tune made for Bricko.</p></div>
+      <div id="srcLink" hidden>
+        <div class="linkrow">
+          <input id="songLink" type="url" inputmode="url" placeholder="Paste a song link" aria-label="Song link" autocomplete="off">
+          <button class="btn primary" type="button" id="songPlay">Play</button>
+        </div>
+        <p class="set-note" style="margin-top:8px">Works with YouTube links and direct links to audio files (.mp3, .m4a, .ogg). Spotify, Apple Music and similar apps don't allow their songs to play inside other apps.</p>
+      </div>
+      <div id="srcFile" hidden>
+        <label class="btn" for="songFile">🎵 Add a song from this device</label>
+        <input type="file" id="songFile" accept="audio/*" hidden>
+        <p class="set-note" style="margin-top:8px" id="fileNote">MP3, M4A, OGG or WAV. Songs you add are saved on this device.</p>
+        <div class="songlist" id="songList"></div>
+      </div>
+      <p class="set-note" id="webNote" hidden>Song links play in the Bricko apps for Windows and Android. Here, choose a song file instead.</p>
+      <div class="vol">
+        <label for="volume">Volume</label>
+        <input type="range" id="volume" min="0" max="100" step="1" value="60">
+        <output id="volVal" for="volume">60%</output>
+      </div>
+      <p class="now" id="nowPlaying" role="status">Music is off.</p>
+    </section>
+
+    <div class="set-foot"><button class="btn primary" type="button" id="setDone">Done</button></div>
+  </div>
+</dialog>
+<audio id="songAudio" loop preload="auto"></audio>
+<div id="ytHost" aria-hidden="true"></div>
+<dialog id="expDlg" aria-labelledby="expTitle">
+  <div class="set">
+    <div class="set-head"><h2 id="expTitle">Export 3D model</h2><button class="set-x" type="button" id="expClose" aria-label="Close">✕</button></div>
+    <section class="set-sec">
+      <h3>Format</h3>
+      <div class="seg3" role="group" aria-label="File format">
+        <button type="button" data-fmt="glb" aria-pressed="true">GLB · color</button>
+        <button type="button" data-fmt="stl" aria-pressed="false">STL · 3D print</button>
+        <button type="button" data-fmt="both" aria-pressed="false">Both</button>
+      </div>
+      <p class="set-note" id="fmtNote"></p>
+    </section>
+    <section class="set-sec">
+      <h3>Your model</h3>
+      <p class="now" id="expInfo"></p>
+      <p class="set-note">1 stud = 8 mm, the size of a real toy brick.</p>
+    </section>
+    <p class="set-note" id="expWebNote" hidden>Your model downloads inside a .zip file. Open the zip to get the 3D file.</p>
+    <div class="set-foot"><button class="btn primary" type="button" id="expGo">Export</button></div>
+  </div>
+</dialog>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script src="RoundedBoxGeometry.js"></script>
+<script src="RoomEnvironment.js"></script>
+<script src="CopyShader.js"></script>
+<script src="LuminosityHighPassShader.js"></script>
+<script src="EffectComposer.js"></script>
+<script src="RenderPass.js"></script>
+<script src="ShaderPass.js"></script>
+<script src="UnrealBloomPass.js"></script>
+<script src="GLTFExporter.js"></script>
+<script src="STLExporter.js"></script>
+<script src="fflate.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const COLORS = [
+  ["r","Red","#e53935"],["o","Orange","#fb8c00"],["y","Yellow","#fdd835"],["g","Green","#43a047"],["d","Dark green","#1b5e20"],
+  ["c","Sky","#81d4fa"],["b","Blue","#1e88e5"],["n","Navy","#283593"],["p","Pink","#ec407a"],["t","Brown","#6d4c41"],
+  ["w","White","#f2f2f2"],["s","Gray","#90a4ae"],["k","Black","#263238"],["v","Purple","#8e24aa"],
+  ["a1","Tan","#e4cd9e"],["a2","Dark tan","#958a73"],["a3","Light gray","#a0a5a9"],["a4","Dark gray","#6c6e68"],
+  ["a5","Lime","#bbe90b"],["a6","Yellowish green","#dfeea5"],["a7","Olive","#9b9a5a"],["a8","Sand green","#a0bcac"],
+  ["a9","Dark turquoise","#008f9b"],["b1","Medium azure","#36aebf"],["b2","Dark azure","#078bc9"],["b3","Light aqua","#adc3c0"],
+  ["b4","Bright light blue","#9fc3e9"],["b5","Medium blue","#5a93db"],["b6","Sand blue","#6074a1"],["b7","Dark blue","#0a3463"],
+  ["b8","Dark red","#720e0f"],["b9","Reddish brown","#582a12"],["c1","Dark orange","#a95500"],["c2","Light orange","#f8bb3d"],
+  ["c3","Light yellow","#fff03a"],["c4","Medium nougat","#aa7d55"],["c5","Nougat","#d09168"],["c6","Light nougat","#f6d7b3"],
+  ["c7","Coral","#ff698f"],["c8","Dark pink","#c870a0"],["c9","Light pink","#e4adc8"],["d1","Magenta","#923978"],
+  ["d2","Dark purple","#3f3691"],["d3","Medium lavender","#ac78ba"],["d4","Lavender","#e1d5ed"],
+  ["d5","Salmon","#f2705e"],["d6","Light salmon","#febabd"],["d7","Sand red","#d67572"],["d8","Medium orange","#ffa70b"],
+  ["d9","Earth orange","#fa9c1c"],["e1","Dark brown","#352100"],["e2","Medium green","#73dca1"],["e3","Bright green","#4b9f4a"],
+  ["e4","Earth green","#184632"],["e5","Very light gray","#e6e3da"],["e6","Light royal blue","#b4d2e3"],["e7","Medium violet","#6874ca"]];
+const BRICK_N = COLORS.length;   // the named brick colors come first; never reorder
+(function addShades(){
+  const HUES=["Red","Vermilion","Orange","Amber","Yellow","Citron","Chartreuse","Lime","Green","Bright green","Spring green","Mint",
+              "Cyan","Sky","Azure","Cornflower","Blue","Indigo","Violet","Purple","Magenta","Fuchsia","Pink","Rose"];
+  const LV=[[1,.25,"Deep "],[1,.4,"Dark "],[1,.55,""],[1,.7,"Light "],[1,.85,"Pale "],
+            [.5,.25,"Deep muted "],[.5,.4,"Dark muted "],[.5,.55,"Muted "],[.5,.7,"Light muted "],[.5,.85,"Pale muted "],
+            [.25,.35,"Dark grayish "],[.25,.55,"Grayish "],[.25,.75,"Light grayish "]];
+  const hex=(h,sat,l)=>{ const f=n=>{ const k=(n+h/30)%12, a=sat*Math.min(l,1-l); return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,"0"); }; return "#"+f(0)+f(8)+f(4); };
+  let n=0;
+  HUES.forEach((name,hi)=>LV.forEach(([sat,l,adj])=>COLORS.push(["x"+(n++),adj+name.toLowerCase(),hex(hi*15,sat,l)])));
+  for(let i=0;i<16;i++){ const l=.03+i*.94/15; COLORS.push(["x"+(n++),`Gray ${Math.round(l*100)}%`,hex(0,0,l)]); }
+  const LV2=[[1,.32,"Deep "],[1,.47,"Dark "],[1,.62,""],[1,.77,"Light "],[1,.92,"Pale "],[.75,.5,"Soft "],[.75,.68,"Light soft "],
+             [.75,.33,"Dark soft "],[.5,.32,"Deep muted "],[.5,.62,"Muted "],[.35,.45,"Dusty "],[.35,.65,"Light dusty "],[.15,.5,"Grayish "]];
+  HUES.forEach((name,hi)=>LV2.forEach(([sat,l,adj])=>COLORS.push(["x"+(n++),adj+name.toLowerCase()+"-"+HUES[(hi+1)%24].toLowerCase(),hex(hi*15+7.5,sat,l)])));
+  for(let i=0;i<15;i++){ const l=.03+(i+.5)*.94/15; COLORS.push(["x"+(n++),`Gray ${Math.round(l*100)}%`,hex(0,0,l)]); }
+  COLORS.forEach((c,i)=>{ if(i>=BRICK_N) c[1]=c[1].charAt(0).toUpperCase()+c[1].slice(1); });
+})();
+const CH = Object.fromEntries(COLORS.map((c,i)=>[c[0],i]));
+let N = 20, O = -N/2;
+const H = 140, PLATES = [20,32,48,64,100,128];
+const SIZES = [[1,1],[1,2],[1,3],[1,4],[1,6],[2,2],[2,3],[2,4],[2,6]];
+
+// Tasks: layers bottom→top; each layer is rows (z), each char a column (x); "." = empty
+const TASKS = [
+  {id:"stack",  name:"Starter Stack", layers:[["r"],["y"],["b"]]},
+  {id:"steps",  name:"Steps",         layers:[["sss"],[".ss"],["..s"]]},
+  {id:"bridge", name:"Bridge",        layers:[["s...s"],["s...s"],["ttttt"]]},
+  {id:"rocket", name:"Rocket",        alts:{w:["w","s","a3","e5"]}, layers:[[".r.","rwr",".r."],["...",".w.","..."],["...",".c.","..."],["...",".w.","..."],["...",".r.","..."]]},
+  {id:"heart",  name:"Heart",         alts:{p:["p","r","c7","d1","b8","c8"]}, layers:[["..p.."],[".ppp."],["ppppp"],["pp.pp"]]},
+  {id:"tree",   name:"Little Tree",   alts:{t:["t","b9","a2","c4"],g:["g","e3","a5","a8"],d:["d","e4","a7","g"]}, layers:[["...",".t.","..."],["...",".t.","..."],["ggg","ggg","ggg"],[".d.","ddd",".d."],["...",".g.","..."]]},
+  {id:"duck",   name:"Duck",          alts:{y:["y","c3","w","c2"],o:["o","d8","c1"]}, layers:[["yyy.","yyy."],["yyy.","yyy."],["y.yo","y.yo"],["..y.","..y."]]},
+  {id:"cottage",name:"Cottage",       alts:{r:["r","b8","a1","w","c5","s"],c:["c","b4","e6"],n:["n","t","k","b9","a4"]}, layers:[["r.rr","r..r","rrrr"],["r.cr","c..r","rrrr"],["nnnn","nnnn","nnnn"],["....","nnnn","...."]]},
+  {id:"surprise",name:"Surprise build", layers:[]},
+].map(t=>{ const blocks=[]; t.layers.forEach((L,y)=>L.forEach((row,z)=>[...row].forEach((ch,x)=>{ if(ch!==".") blocks.push([x,y,z,CH[ch]]); }))); return {...t,blocks}; });
+
+// ---------- state ----------
+let bricks = new Map(), cells = new Map(), nid = 1;   // id -> {x,y,z,w,d,c};  "x,y,z" -> id
+let color = 0, mode = "build", size = [1,1], turned = false;
+let undo = [];
+let taskIdx = 0, done = new Set();
+let currentId = null;
+let guide = null;   // step-by-step picture build in progress
+const key = (x,y,z)=>x+","+y+","+z;
+const dims = ()=>turned ? [size[1],size[0]] : [size[0],size[1]];
+function fits(x,y,z,w,d){
+  if(y<0||y>=H) return false;
+  for(let i=0;i<w;i++) for(let j=0;j<d;j++){ const cx=x+i, cz=z+j; if(cx<0||cz<0||cx>=N||cz>=N||cells.has(key(cx,y,cz))) return false; }
+  return true;
+}
+function addBrick(x,y,z,w,d,c){ const id=nid++; bricks.set(id,{x,y,z,w,d,c}); for(let i=0;i<w;i++) for(let j=0;j<d;j++) cells.set(key(x+i,y,z+j),id); }
+function removeBrick(id){ const b=bricks.get(id); if(!b) return; for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) cells.delete(key(b.x+i,b.y,b.z+j)); bricks.delete(id); }
+function clearAll(){ bricks.clear(); cells.clear(); }
+const toArr = ()=>[...bricks.values()].map(b=>[b.x,b.y,b.z,b.c,b.w,b.d]);
+function cellArr(){ const out=[]; for(const b of bricks.values()) for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) out.push([b.x+i,b.y,b.z+j,b.c]); return out; }
+
+// ---------- three ----------
+let ok3d = !!window.THREE;
+let renderer, scene, camera, controls, plate, grid, ghost, blockGroup, meshes = new Map();
+let edgeMat, studGeo, studEdge, mats = [], brickMat, fadeMat, plateStudGeo, plateStuds = null, mainLight = null, brickTargets = [];
+const geoCache = {};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function makeShared(){
+  edgeMat = new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:.22});
+  studGeo = new THREE.CylinderGeometry(.3,.3,.18,28);
+  studEdge = new THREE.EdgesGeometry(studGeo, 30);
+  mats = COLORS.map(c=>new THREE.MeshPhysicalMaterial({color:c[2],roughness:.22,metalness:0,clearcoat:.6,clearcoatRoughness:.2}));
+  brickMat = new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.28,metalness:0,clearcoat:.55,clearcoatRoughness:.2,envMapIntensity:.32});
+  if(THREE.RoundedBoxGeometry) edgeMat.visible=false;     // rounded bricks show their own seams
+  fadeMat = new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.2,depthWrite:false});
+  plateStudGeo = new THREE.CylinderGeometry(.3,.3,.18,14);
+}
+function brickGeo(w,d){
+  const k=w+"x"+d;
+  if(!geoCache[k]){ const box=THREE.RoundedBoxGeometry?new THREE.RoundedBoxGeometry(w-.04,.96,d-.04,3,.07):new THREE.BoxGeometry(w-.04,.96,d-.04); geoCache[k]={box,edge:new THREE.EdgesGeometry(new THREE.BoxGeometry(w-.04,.96,d-.04))}; }
+  return geoCache[k];
+}
+// a brick mesh centred on its footprint; (px,pz) is the world position of its centre
+function brickMesh(w,d,c,shadow){
+  const g=brickGeo(w,d);
+  const m = new THREE.Mesh(g.box,mats[c]);
+  if(shadow) m.castShadow = m.receiveShadow = true;
+  m.add(new THREE.LineSegments(g.edge,edgeMat));
+  for(let i=0;i<w;i++) for(let j=0;j<d;j++){
+    const s = new THREE.Mesh(studGeo,mats[c]); s.position.set(i+.5-w/2,.57,j+.5-d/2);
+    if(shadow) s.castShadow = s.receiveShadow = true;
+    s.add(new THREE.LineSegments(studEdge,edgeMat)); m.add(s);
+  }
+  return m;
+}
+function addLights(sc,shadow){
+  sc.add(new THREE.HemisphereLight(0xfffaf0,0x5c6068,.45));
+  const d = new THREE.DirectionalLight(0xfff0d8,.8); d.position.set(10,20,13);      // warm key light
+  if(shadow){ d.castShadow=true; d.shadow.mapSize.set(2048,2048); d.shadow.bias=-.0004; d.shadow.normalBias=.02;
+    Object.assign(d.shadow.camera,{left:-15,right:15,top:15,bottom:-15,near:1,far:60}); }
+  sc.add(d);
+  const f = new THREE.DirectionalLight(0xdce7ff,.25); f.position.set(-14,9,-11); sc.add(f);   // cool fill
+  return d;
+}
+function studioEnv(r){
+  try{ if(!THREE.RoomEnvironment) return null;
+    const pm=new THREE.PMREMGenerator(r), t=pm.fromScene(new THREE.RoomEnvironment(),.04).texture; pm.dispose(); return t; }
+  catch{ return null; }
+}
+let bgTex=null, ground=null, composer=null, bloomPass=null, useBloom=false;
+function stageBackground(){
+  const c=document.createElement("canvas"); c.width=4; c.height=256;
+  const x=c.getContext("2d"), g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,css("--stage-top")); g.addColorStop(1,css("--stage")); x.fillStyle=g; x.fillRect(0,0,4,256);
+  return new THREE.CanvasTexture(c);
+}
+
+function init3d(){
+  const view = $("view");
+  try{ renderer = new THREE.WebGLRenderer({antialias:true}); }catch{ ok3d=false; }
+  if(!ok3d){ view.insertAdjacentHTML("beforeend",`<div class="nogl"><div><strong>3D isn't available here.</strong><br>This browser couldn't start WebGL, which the build plate needs.</div></div>`); return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.domElement.className="main"; view.prepend(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(42,1,.1,3000); camera.position.set(14,16,20);
+  controls = new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true; controls.enablePan=false; controls.minDistance=6; controls.maxDistance=320; controls.maxPolarAngle=Math.PI*.48;
+  controls.target.set(0,1,0);
+  makeShared(); mainLight=addLights(scene,true);
+  plate = new THREE.Mesh(new THREE.BoxGeometry(N,.24,N), new THREE.MeshStandardMaterial({roughness:.6}));
+  plate.position.y=-.12; plate.receiveShadow=true; plate.castShadow=true; plate.material.envMapIntensity=.12; plate.material.roughness=.8; scene.add(plate);
+  scene.environment=studioEnv(renderer);
+  if(THREE.EffectComposer&&THREE.RenderPass&&THREE.UnrealBloomPass){
+    try{ composer=new THREE.EffectComposer(renderer); composer.addPass(new THREE.RenderPass(scene,camera));
+      bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(512,512),.42,.45,.9); composer.addPass(bloomPass); }
+    catch{ composer=null; } }
+  ground=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),new THREE.ShadowMaterial({opacity:.18}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=-.26; ground.receiveShadow=true; scene.add(ground);
+  setPlate(N);
+  blockGroup = new THREE.Group(); scene.add(blockGroup);
+  ghost = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({transparent:true,opacity:.35,depthWrite:false}));
+  ghost.visible=false; scene.add(ghost);
+  applyTheme();
+  new ResizeObserver(resize).observe(view); resize();
+  bindPointer();
+  initMini();
+  loop();
+}
+function applyTheme(){
+  if(!ok3d) return;
+  if(bgTex) bgTex.dispose(); bgTex=stageBackground(); scene.background=bgTex;
+  scene.fog = new THREE.Fog(css("--stage"), 60, 200);
+  plate.material.color.set(css("--plate"));
+  if(grid){ scene.remove(grid); grid.geometry.dispose(); }
+  grid = new THREE.GridHelper(N,N,css("--plate-line"),css("--plate-line")); grid.position.y=.005; scene.add(grid);
+  const fut=document.documentElement.getAttribute("data-style")==="future";
+  grid.visible=fut; grid.material.transparent=true; grid.material.opacity=fut?.32:1;
+  if(edgeMat){ edgeMat.visible=fut||!THREE.RoundedBoxGeometry; edgeMat.color.set(fut?0xffe27a:0x000000); edgeMat.opacity=fut?.2:.22;
+    edgeMat.blending=fut?THREE.AdditiveBlending:THREE.NormalBlending; edgeMat.needsUpdate=true; }
+  if(brickMat){ brickMat.roughness=fut?.14:.28; brickMat.metalness=fut?.12:0; brickMat.envMapIntensity=fut?.55:.32; brickMat.needsUpdate=true; }
+  plate.material.envMapIntensity=fut?.22:.12; plate.material.roughness=fut?.55:.8;
+  if(ground) ground.material.opacity=fut?.32:.18;
+  useBloom=fut&&!!composer;
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme","data-style"]});
+
+function resize(){ const v=$("view"); const w=v.clientWidth,h=v.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  if(composer){ composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w,h); } }
+
+// ---------- placing ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hitAt(e){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hits = ray.intersectObjects([plate,...brickTargets],false);
+  if(!hits.length) return null;
+  const h = hits[0], n = h.face.normal;
+  if(h.object===plate && n.y<.5) return null;
+  const p = h.point.clone().addScaledVector(n,.5);   // step into the empty cell next to the face
+  const cell = [Math.floor(p.x-O), Math.floor(p.y), Math.floor(p.z-O)];
+  return {cell, remove: h.object===plate ? null : h.object.userData.ids[h.instanceId]};
+}
+function anchorFor(cell){ const [w,d]=dims();
+  if(guide){ const g=guideSnap(cell,w,d); if(g) return [g.x,g.y,g.z,g.w,g.d]; }
+  return [cell[0]-Math.floor((w-1)/2), cell[1], cell[2]-Math.floor((d-1)/2), w, d]; }
+function showGhost(h, erase){
+  if(!h){ ghost.visible=false; return; }
+  if(erase){
+    const b = h.remove!=null && bricks.get(h.remove); if(!b){ ghost.visible=false; return; }
+    ghost.position.set(b.x+O+b.w/2,b.y+.5,b.z+O+b.d/2); ghost.scale.set(b.w+.06,1.06,b.d+.06);
+    ghost.material.color.set("#ff3b4a"); ghost.visible=true; return;
+  }
+  const [x,y,z,w,d]=anchorFor(h.cell);
+  if(!fits(x,y,z,w,d)){ ghost.visible=false; return; }
+  ghost.position.set(x+O+w/2,y+.5,z+O+d/2); ghost.scale.set(w,1,d);
+  ghost.material.color.set(COLORS[color][2]); ghost.visible=true;
+}
+let lastHover=null;
+function bindPointer(){
+  const el = renderer.domElement; let down=null;
+  el.addEventListener("contextmenu",e=>e.preventDefault());
+  el.addEventListener("pointerdown",e=>{ down={x:e.clientX,y:e.clientY,t:performance.now(),b:e.button}; });
+  el.addEventListener("pointermove",e=>{ if(e.pointerType!=="mouse"||e.buttons){ if(e.buttons) ghost.visible=false; return; } lastHover={e,erase:mode==="erase"||e.shiftKey}; showGhost(hitAt(e), lastHover.erase); });
+  el.addEventListener("pointerleave",()=>{ ghost.visible=false; lastHover=null; });
+  el.addEventListener("pointerup",e=>{
+    if(!down) return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y), dt=performance.now()-down.t; const b=down.b; down=null;
+    if(moved>6||dt>600) return;
+    const h=hitAt(e); if(!h) return;
+    const erase = mode==="erase"||b===2||e.shiftKey;
+    if(erase){ if(h.remove!=null) mutate(()=>removeBrick(h.remove)); }
+    else { const [x,y,z,w,d]=anchorFor(h.cell); if(fits(x,y,z,w,d)) mutate(()=>addBrick(x,y,z,w,d,color)); else say("That brick doesn't fit there. Try another spot, a smaller size, or Rotate."); }
+    if(e.pointerType==="mouse") showGhost(hitAt(e), erase);
+  });
+}
+function refreshGhost(){ if(lastHover && ok3d) showGhost(hitAt(lastHover.e), lastHover.erase); }
+function mutate(fn){ pushUndo(); fn(); syncScene(); }
+function setBlocks(arr, record){
+  if(record) pushUndo();
+  const need=extentOf(arr||[]); if(need>N) setPlate(plateAtLeast(need));
+  clearAll(); (arr||[]).forEach(a=>addBrick(a[0],a[1],a[2],a[4]||1,a[5]||1,a[3])); syncScene();
+}
+function syncScene(){
+  if(anim) stopBuildAnim(false);
+  if(ok3d){
+    scene.remove(blockGroup); disposeGroup(blockGroup);
+    const list=[]; for(const [id,b] of bricks) list.push({...b,id});
+    blockGroup=makeBrickGroup(list,O,O,true,cells);
+    scene.add(blockGroup);
+    brickTargets=blockGroup.children.filter(o=>o.userData.ids);
+    fitShadow(list);
+  }
+  const n=bricks.size; $("count").textContent = n.toLocaleString()+(n===1?" brick":" bricks");
+  $("undoBtn").disabled = !undo.length;
+  checkTask();
+}
+// draws any number of bricks with a handful of draw calls
+function makeBrickGroup(list, ox, oz, shadow, occ){
+  const g=new THREE.Group(); if(!list.length) return g;
+  if(!occ){ occ=new Set(); for(const b of list) for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) occ.add(key(b.x+i,b.y,b.z+j)); }
+  const bySize=new Map(); let studN=0;
+  for(const b of list){
+    const k=b.w+"x"+b.d; if(!bySize.has(k)) bySize.set(k,[]); bySize.get(k).push(b);
+    for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) if(!occ.has(key(b.x+i,b.y+1,b.z+j))) studN++;
+  }
+  const mtx=new THREE.Matrix4(), col=new THREE.Color();
+  for(const [k,arr] of bySize){
+    const [w,d]=k.split("x").map(Number);
+    const im=new THREE.InstancedMesh(brickGeo(w,d).box,brickMat,arr.length);
+    im.frustumCulled=false; im.castShadow=im.receiveShadow=shadow;
+    const ids=new Array(arr.length);
+    arr.forEach((b,i)=>{ mtx.makeTranslation(b.x+ox+w/2,b.y+.5,b.z+oz+d/2); im.setMatrixAt(i,mtx); im.setColorAt(i,col.set(COLORS[b.c][2])); ids[i]=b.id; });
+    im.instanceColor.needsUpdate=true; im.userData.ids=ids; g.add(im);
+  }
+  if(studN){
+    const st=new THREE.InstancedMesh(studGeo,brickMat,studN); st.frustumCulled=false; st.castShadow=shadow; let si=0;
+    for(const b of list){ col.set(COLORS[b.c][2]);
+      for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++){ if(occ.has(key(b.x+i,b.y+1,b.z+j))) continue;
+        mtx.makeTranslation(b.x+ox+i+.5,b.y+1.07,b.z+oz+j+.5); st.setMatrixAt(si,mtx); st.setColorAt(si++,col); } }
+    st.instanceColor.needsUpdate=true; g.add(st);
+  }
+  const pos=new Float32Array(list.length*72); let p=0;
+  const seg=(a,b,c,d,e,f)=>{ pos[p++]=a;pos[p++]=b;pos[p++]=c;pos[p++]=d;pos[p++]=e;pos[p++]=f; };
+  for(const b of list){
+    const x0=b.x+ox+.02,x1=b.x+ox+b.w-.02,y0=b.y+.02,y1=b.y+.98,z0=b.z+oz+.02,z1=b.z+oz+b.d-.02;
+    for(const y of [y0,y1]){ seg(x0,y,z0,x1,y,z0); seg(x1,y,z0,x1,y,z1); seg(x1,y,z1,x0,y,z1); seg(x0,y,z1,x0,y,z0); }
+    seg(x0,y0,z0,x0,y1,z0); seg(x1,y0,z0,x1,y1,z0); seg(x1,y0,z1,x1,y1,z1); seg(x0,y0,z1,x0,y1,z1);
+  }
+  const eg=new THREE.BufferGeometry(); eg.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  const ls=new THREE.LineSegments(eg,edgeMat); ls.frustumCulled=false; ls.userData.own=true; g.add(ls);
+  return g;
+}
+function disposeGroup(g){
+  if(!g) return;
+  g.traverse(o=>{ if(o.isInstancedMesh) o.dispose(); else if(o.isLineSegments && o.userData.own) o.geometry.dispose(); });
+}
+function fitShadow(list){
+  if(!mainLight) return;
+  let top=0; for(const b of list) if(b.y+1>top) top=b.y+1;
+  mainLight.castShadow = list.length<2500 && N<100;
+  const s=Math.max(N*.75+4, top*.9+6), c=mainLight.shadow.camera;
+  if(c.right===s) return;
+  Object.assign(c,{left:-s,right:s,top:s,bottom:-s,near:1,far:s*6+40}); c.updateProjectionMatrix();
+  mainLight.position.set(s*.6,s*1.2+8,s*.8);
+}
+function setPlate(n){
+  N=n; O=-N/2;
+  if(ok3d && scene && plate){
+    plate.geometry.dispose(); plate.geometry=new THREE.BoxGeometry(N,.24,N);
+    if(plateStuds){ scene.remove(plateStuds); plateStuds.dispose(); }
+    plateStuds=new THREE.InstancedMesh(plateStudGeo,plate.material,N*N);
+    const m=new THREE.Matrix4(); let i=0;
+    for(let x=0;x<N;x++) for(let z=0;z<N;z++){ m.makeTranslation(x+O+.5,.09,z+O+.5); plateStuds.setMatrixAt(i++,m); }
+    plateStuds.receiveShadow=true; plateStuds.frustumCulled=false; scene.add(plateStuds);
+    applyTheme(); if(mainLight) mainLight.shadow.camera.right=-1;   // forces a shadow refit
+  }
+  renderPlates();
+}
+function renderPlates(){
+  const el=$("plates"); if(!el) return;
+  el.innerHTML=PLATES.map(n=>`<button type="button" data-plate="${n}" aria-pressed="${n===N}" aria-label="${n} by ${n} plate">${n}</button>`).join("");
+}
+const plateAtLeast=n=>PLATES.find(q=>q>=n)||PLATES[PLATES.length-1];
+function extentOf(arr){ let m=0; for(const a of arr) m=Math.max(m,a[0]+(a[4]||1),a[2]+(a[5]||1)); return m; }
+const snapshot=()=>({n:N,a:toArr()});
+function pushUndo(){ undo.push(snapshot()); if(undo.length>150) undo.shift(); }
+function changePlate(n){
+  if(n===N) return;
+  if(guide){ say("Finish or stop the step-by-step build before changing the plate."); renderPlates(); return; }
+  const sh=Math.floor((n-N)/2), arr=toArr().map(a=>[a[0]+sh,a[1],a[2]+sh,a[3],a[4],a[5]]);
+  if(arr.some(a=>a[0]<0||a[2]<0||a[0]+a[4]>n||a[2]+a[5]>n)){ say(`Your build doesn't fit on a ${n}×${n} plate. Remove some bricks or pick a bigger plate.`); renderPlates(); return; }
+  const old=N; pushUndo(); setPlate(n); setBlocks(arr,false);
+  if(ok3d){ const t=controls.target; camera.position.sub(t).multiplyScalar(n/old).add(t); }
+  say(`The plate is now ${n}×${n} studs.`);
+}
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-plate]"); if(b) changePlate(+b.dataset.plate); });
+
+// ---------- mini target + thumbnails ----------
+let mini, miniScene, miniCam, miniGroup, thumbR, thumbScene, thumbCam;
+function groupFor(arr){
+  if(!arr||!arr.length){ const g=new THREE.Group(); g.userData={size:1,h:1}; return g; }
+  let mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+  arr.forEach(([x,y,z,c,w=1,d=1])=>{ mn=[Math.min(mn[0],x),Math.min(mn[1],y),Math.min(mn[2],z)]; mx=[Math.max(mx[0],x+w),Math.max(mx[1],y+1),Math.max(mx[2],z+d)]; });
+  const cx=(mn[0]+mx[0])/2, cz=(mn[2]+mx[2])/2;
+  const g=makeBrickGroup(arr.map(([x,y,z,c,w=1,d=1])=>({x,y,z,c,w,d})),-cx,-cz,false);
+  g.userData={size:Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]),h:mx[1]-mn[1]};
+  return g;
+}
+function fit(cam,g){ const s=g.userData.size||1, d=s*1.55+2.4, h=g.userData.h||1; cam.position.set(d*.75,h/2+d*.6,d*.9); cam.lookAt(0,h/2,0); }
+function initMini(){
+  try{ mini = new THREE.WebGLRenderer({canvas:$("mini"),antialias:true,alpha:true}); }catch{ return; }
+  mini.setPixelRatio(Math.min(devicePixelRatio,2)); mini.setSize(200,200,false);
+  miniScene = new THREE.Scene(); addLights(miniScene,false); miniScene.environment=studioEnv(mini);
+  miniCam = new THREE.PerspectiveCamera(35,1,.1,3000);
+  try{
+    const c=document.createElement("canvas"); thumbR=new THREE.WebGLRenderer({canvas:c,antialias:true,alpha:true,preserveDrawingBuffer:true});
+    thumbR.setSize(240,240,false); thumbScene=new THREE.Scene(); addLights(thumbScene,false); thumbScene.environment=studioEnv(thumbR); thumbCam=new THREE.PerspectiveCamera(35,1,.1,3000);
+  }catch{ thumbR=null; }
+}
+const thumbCache = new Map();
+function thumbFor(b){
+  if(!thumbR) return "";
+  const sig = b.id+":"+b.updated; if(thumbCache.has(sig)) return thumbCache.get(sig);
+  const g=groupFor(b.blocks||[]); g.rotation.y=-.5; thumbScene.add(g); fit(thumbCam,g); thumbR.render(thumbScene,thumbCam);
+  const url=thumbR.domElement.toDataURL("image/png"); thumbScene.remove(g); disposeGroup(g); thumbCache.set(sig,url); return url;
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+  moveTick();
+  animTick();
+  if(scene.fog){ const dd=camera.position.distanceTo(controls.target); scene.fog.near=dd*1.1+N*.35; scene.fog.far=dd*2.8+N*1.4; }
+  controls.update();
+  if(guide && guideGhosts){ const o=REDUCED?.35:.24+.16*Math.sin(performance.now()/280); for(const k in ghostMats) ghostMats[k].opacity=o; }
+  if(useBloom&&composer) composer.render(); else renderer.render(scene,camera);
+  if(miniGroup){ miniGroup.rotation.y += .01; mini.render(miniScene,miniCam); }
+}
+
+// ---------- tasks ----------
+function norm(arr){ // translate to origin on x/z
+  if(!arr.length) return [];
+  const mx=Math.min(...arr.map(a=>a[0])), mz=Math.min(...arr.map(a=>a[2]));
+  return arr.map(([x,y,z,c])=>[x-mx,y,z-mz,c]);
+}
+const rot = arr=>arr.map(([x,y,z,c])=>[z,y,-x,c]);
+const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const FREE_POOL=["r","o","y","g","c","b","n","p","t","s","k","v","a1","a5","b1","c7","d3","b5","d8","e3"].map(k=>CH[k]);
+let curTask=null;
+function makeSurprise(){
+  const n=6+Math.floor(Math.random()*9), pal=shuffle(FREE_POOL.slice()).slice(0,2+Math.floor(Math.random()*2));
+  const cells=new Map(), k=(x,y,z)=>x+","+y+","+z;
+  cells.set(k(0,0,0),[0,0,0]);
+  const dirs=[[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,1,0],[0,1,0]];
+  for(let tries=0;cells.size<n&&tries<500;tries++){
+    const [x,y,z]=pick([...cells.values()]), [dx,dy,dz]=pick(dirs), nx=x+dx, ny=y+dy, nz=z+dz;
+    if(Math.abs(nx)>2||Math.abs(nz)>2||ny>5||cells.has(k(nx,ny,nz))) continue;
+    if(ny>0&&!cells.has(k(nx,ny-1,nz))) continue;          // every brick sits on something
+    cells.set(k(nx,ny,nz),[nx,ny,nz]);
+  }
+  const blocks=[...cells.values()].map(([x,y,z])=>[x,y,z,pal[(y+(Math.random()<.2?1:0))%pal.length]]);
+  return {id:"surprise",name:"Surprise build",blocks:norm(blocks)};
+}
+function makeVariant(i){
+  const t=TASKS[i]; if(t.id==="surprise") return makeSurprise();
+  const used=[...new Set(t.blocks.map(b=>b[3]))], pool=shuffle(FREE_POOL.slice()), map=new Map(), taken=()=>[...map.values()];
+  for(const c of used){
+    const code=COLORS[c][0];
+    if(t.alts&&t.alts[code]){ const opts=t.alts[code].map(q=>CH[q]).filter(x=>!taken().includes(x)); map.set(c,opts.length?pick(opts):c); }
+    else { let nc=pool.shift(); while(nc!==undefined&&taken().includes(nc)) nc=pool.shift(); map.set(c,nc??c); }
+  }
+  let blocks=t.blocks.map(([x,y,z,c])=>[x,y,z,map.get(c)]);
+  if(Math.random()<.5) blocks=blocks.map(([x,y,z,c])=>[-x,y,z,c]);
+  for(let r=Math.floor(Math.random()*4);r>0;r--) blocks=rot(blocks);
+  return {...t,blocks:norm(blocks)};
+}
+const task=()=>curTask||(curTask=makeVariant(taskIdx));
+function score(task){
+  const target = new Set(norm(task.blocks).map(a=>a.join(",")));
+  let built = cellArr(), best={hit:0,extra:built.length};
+  if(!built.length) return best;
+  for(let r=0;r<4;r++){
+    const n = norm(built); let hit=0; n.forEach(a=>{ if(target.has(a.join(","))) hit++; });
+    const res={hit,extra:n.length-hit};
+    if(hit>best.hit || (hit===best.hit && res.extra<best.extra)) best=res;
+    built=rot(built);
+  }
+  return best;
+}
+function showTask(){
+  const t = task();
+  $("taskName").textContent = t.name; $("taskCode").textContent = "T-"+String(taskIdx+1).padStart(2,"0");
+  if(miniScene){ if(miniGroup){ miniScene.remove(miniGroup); disposeGroup(miniGroup); } miniGroup=groupFor(t.blocks); miniScene.add(miniGroup); fit(miniCam,miniGroup); }
+  renderTasks(); checkTask();
+}
+let lastComplete=false;
+let play = "tasks";
+try{ if(localStorage.getItem("pegpals.play")==="free") play="free"; }catch{}
+function setPlay(p){
+  if(guide) endGuide();
+  play=p;
+  $("playFree").setAttribute("aria-pressed",p==="free"); $("playTasks").setAttribute("aria-pressed",p==="tasks");
+  $("taskCard").hidden = $("taskGroup").hidden = p==="free";
+  $("sub").textContent = p==="free" ? "Build anything in 3D, or turn a picture into bricks, then save it to your shelf." : "Build in 3D with blocks. Match the model in the corner to finish each task.";
+  try{ localStorage.setItem("pegpals.play",p); }catch{}
+  lastComplete=false; checkTask();
+}
+$("playFree").onclick=()=>{ setPlay("free"); say("Free build: no tasks, make whatever you want."); };
+$("playTasks").onclick=()=>{ setPlay("tasks"); say(`Task mode: build “${task().name}” to match the model.`); };
+function checkTask(){
+  if(guide){ guideCheck(); return; }
+  if(play==="free") return;
+  const t=task(); const {hit,extra}=score(t); const total=t.blocks.length;
+  const complete = hit===total && extra===0;
+  $("meter").style.width = Math.round(100*hit/total)+"%";
+  $("taskProg").innerHTML = complete ? `<span class="ok">Done ✓</span>` : `${hit} / ${total}`+(extra?` · ${extra} extra`:"");
+  $("taskCard").classList.toggle("done",complete);
+  $("nextBtn").hidden = !complete;
+  if(complete && !lastComplete){
+    say(`Nice! “${t.name}” matches.`+(taskIdx<TASKS.length-1?" Press Next for the next task.":" Press Next for another surprise build."));
+    if(!done.has(t.id)){ done.add(t.id); renderTasks(); saveProgress(); }
+  }
+  lastComplete = complete;
+}
+function renderTasks(){
+  $("tasks").innerHTML = TASKS.map((t,i)=>`<button type="button" class="titem${done.has(t.id)?" done":""}" aria-pressed="${i===taskIdx}" data-t="${i}">
+    <span class="n">T-${String(i+1).padStart(2,"0")}</span><span class="nm">${t.name}</span><span class="k">${t.id==="surprise"?"🎲":t.blocks.length+"▣"}</span><span class="tick">✓</span></button>`).join("");
+  $("tally").textContent = `${done.size} of ${TASKS.length} done`;
+}
+$("tasks").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(!b) return; taskIdx=+b.dataset.t; curTask=null; lastComplete=false; showTask(); });
+$("nextBtn").onclick=()=>{ taskIdx=Math.min(taskIdx+1,TASKS.length-1); curTask=null; lastComplete=false; mutate(()=>clearAll()); showTask(); say(`New task: ${task().name}. Plate cleared, Undo brings your last build back.`); };
+$("mixBtn").onclick=()=>{ curTask=null; lastComplete=false; showTask(); say(task().id==="surprise"?"Here's a new surprise build.":`New colors and a new angle for “${task().name}”.`); };
+
+// ---------- tools ----------
+$("sws").innerHTML = COLORS.map((c,i)=>`<button type="button" class="sw${i>=BRICK_N?" xtra":""}" style="background:${c[2]}" aria-label="${c[1]}" title="${c[1]}" aria-pressed="${i===color}" data-c="${i}"></button>`).join("");
+$("sws").addEventListener("click",e=>{ const b=e.target.closest("[data-c]"); if(!b) return; color=+b.dataset.c; setMode("build");
+  $("sws").querySelectorAll(".sw").forEach(s=>s.setAttribute("aria-pressed",s===b)); renderSizes(); refreshGhost(); if(guide) renderParts(); });
+function renderSizes(){
+  $("sizes").innerHTML = SIZES.map((sz,i)=>{ const [w,d]= (i===sizeIdx()&&turned)?[sz[1],sz[0]]:sz;
+    return `<button type="button" class="szb" aria-pressed="${i===sizeIdx()}" data-s="${i}" aria-label="${sz[0]} by ${sz[1]} brick">
+      <span class="pips" style="grid-template-columns:repeat(${w},1fr);--c:${COLORS[color][2]};aspect-ratio:${w}/${d}">${'<i></i>'.repeat(w*d)}</span><span class="lbl">${w}×${d}</span></button>`; }).join("");
+}
+const sizeIdx = ()=>SIZES.findIndex(s=>s[0]===size[0]&&s[1]===size[1]);
+$("sizes").addEventListener("click",e=>{ const b=e.target.closest("[data-s]"); if(!b) return; const nz=SIZES[+b.dataset.s]; if(nz===SIZES[sizeIdx()]) { doTurn(); return; } size=nz; turned=false; setMode("build"); renderSizes(); refreshGhost(); if(guide) renderParts(); });
+function doTurn(){ turned=!turned; renderSizes(); refreshGhost(); }
+$("turnBtn").onclick=doTurn;
+function setMode(m){ mode=m; $("modeBuild").setAttribute("aria-pressed",m==="build"); $("modeErase").setAttribute("aria-pressed",m==="erase"); }
+$("modeBuild").onclick=()=>setMode("build"); $("modeErase").onclick=()=>setMode("erase");
+$("undoBtn").onclick=doUndo;
+function doUndo(){ if(!undo.length) return; const u=undo.pop(); if(Array.isArray(u)) setBlocks(u,false); else { if(u.n!==N) setPlate(u.n); setBlocks(u.a,false); } }
+const clearBtn=$("clearBtn");
+clearBtn.onclick=()=>{
+  if(!bricks.size) return;
+  if(!clearBtn.classList.contains("armed")){ clearBtn.classList.add("armed"); clearBtn.textContent="Tap again to clear"; setTimeout(()=>{clearBtn.classList.remove("armed"); clearBtn.textContent="Clear plate";},3000); return; }
+  clearBtn.classList.remove("armed"); clearBtn.textContent="Clear plate"; mutate(()=>clearAll()); currentId=null; nameIn.value=""; syncSaveBtns(); renderShelf();
+};
+addEventListener("keydown",e=>{
+  if(e.target.matches("input")) return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){ e.preventDefault(); doUndo(); }
+  else if(e.key==="b") setMode("build"); else if(e.key==="e") setMode("erase"); else if(e.key==="r") doTurn();
+});
+if(matchMedia("(pointer: coarse)").matches) $("hint").textContent="Drag to spin · pinch to zoom · circle to move · tap to place";
+
+// ---------- storage ----------
+const nameIn=$("nameInput"), statusEl=$("status");
+function say(m){ statusEl.textContent=m; }
+function syncSaveBtns(){ $("saveBtn").textContent=currentId?"Update build":"Save build"; $("copyBtn").hidden=!currentId; }
+const LS="pegpals.blocks.v1";
+let builds=[], store=null;
+const local={
+  read(){ try{ return JSON.parse(localStorage.getItem(LS)||"{}"); }catch{ return {}; } },
+  write(d){ try{ localStorage.setItem(LS,JSON.stringify(d)); return true; }catch{ return false; } },
+  load(){ const d=this.read(); builds=d.builds||[]; done=new Set(d.done||[]); renderTasks(); renderShelf(); },
+  async saveBuild(id,rec){ const i=builds.findIndex(b=>b.id===id); if(i>=0) builds[i]={id,...rec}; else builds.push({id,...rec}); sortBuilds(); renderShelf(); if(!this.write({builds,done:[...done]})) throw {code:"local"}; },
+  async remove(id){ builds=builds.filter(b=>b.id!==id); this.write({builds,done:[...done]}); renderShelf(); },
+  async progress(){ this.write({builds,done:[...done]}); },
+};
+const sortBuilds=()=>builds.sort((a,b)=>(b.updated||0)-(a.updated||0));
+// ---------- accounts (Supabase) ----------
+const CFG = window.BRICKO_CONFIG||{};
+const sb = (CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase) ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}) : null;
+let me = null;   // signed-in user, or null
+
+function useDevice(){
+  me=null; store=local; currentId=null; syncSaveBtns(); done=new Set();
+  $("where").textContent = sb ? "Saved on this device · sign in to save to your account" : "Saved on this device";
+  local.load(); showAcct();
+}
+const cloud = {
+  async saveBuild(id,rec){
+    const {error}=await sb.from("builds").upsert({id,user_id:me.id,name:rec.name,blocks:rec.blocks,updated_at:rec.updated});
+    if(error) throw error;
+    const i=builds.findIndex(b=>b.id===id); if(i>=0) builds[i]={id,...rec}; else builds.push({id,...rec}); sortBuilds(); renderShelf(); cloudWhere();
+  },
+  async remove(id){
+    const {error}=await sb.from("builds").delete().eq("user_id",me.id).eq("id",id); if(error) throw error;
+    builds=builds.filter(b=>b.id!==id); renderShelf(); cloudWhere();
+  },
+  async progress(){ const {error}=await sb.from("progress").upsert({user_id:me.id,done:[...done]}); if(error) throw error; },
+};
+function cloudWhere(){
+  const n=builds.length;
+  $("where").innerHTML = `Saved to your account · ${n} build${n===1?"":"s"}` + copyOffer();
+}
+function deviceBuilds(){ try{ return (JSON.parse(localStorage.getItem(LS)||"{}").builds)||[]; }catch{ return []; } }
+function copyOffer(){
+  if(!me) return "";
+  let copied=false; try{ copied=localStorage.getItem("bricko.copied."+me.id)==="1"; }catch{}
+  const mine=new Set(builds.map(b=>b.id)), extra=deviceBuilds().filter(b=>!mine.has(b.id));
+  if(copied||!extra.length) return "";
+  return `<button class="btn copybtn" type="button" id="copyDev">Copy ${extra.length} build${extra.length===1?"":"s"} from this device</button>`;
+}
+document.addEventListener("click",async e=>{
+  if(!e.target.closest("#copyDev")||!me) return;
+  const mine=new Set(builds.map(b=>b.id)), extra=deviceBuilds().filter(b=>!mine.has(b.id));
+  say("Copying your device builds…");
+  try{
+    if(extra.length){ const {error}=await sb.from("builds").upsert(extra.map(b=>({id:b.id,user_id:me.id,name:b.name,blocks:b.blocks,updated_at:b.updated||Date.now()}))); if(error) throw error; }
+    try{ localStorage.setItem("bricko.copied."+me.id,"1"); }catch{}
+    await useAccount(me); say(`Copied ${extra.length} build${extra.length===1?"":"s"} into your account.`);
+  }catch{ say("Couldn't copy those builds. Check your connection and try again."); }
+});
+async function useAccount(user){
+  me=user; store=null; currentId=null; syncSaveBtns(); showAcct();
+  $("where").textContent="Loading your builds…";
+  const [b,p]=await Promise.all([
+    sb.from("builds").select("id,name,blocks,updated_at").order("updated_at",{ascending:false}),
+    sb.from("progress").select("done").maybeSingle()
+  ]);
+  if(b.error){ $("where").textContent="Couldn't load your builds. Check your connection."; builds=[]; renderShelf(); return; }
+  builds=(b.data||[]).map(r=>({id:r.id,kind:"build",name:r.name,blocks:r.blocks,updated:r.updated_at})); sortBuilds();
+  done=new Set((p.data&&p.data.done)||[]);
+  // tasks finished on this device before signing in count too
+  try{ (JSON.parse(localStorage.getItem(LS)||"{}").done||[]).forEach(x=>done.add(x)); }catch{}
+  store=cloud; renderTasks(); renderShelf(); cloudWhere(); lastComplete=false; checkTask();
+  if(p.data==null || (p.data.done||[]).length!==done.size) saveProgress();
+}
+function displayName(u){ return (u.user_metadata&&u.user_metadata.display_name)||u.email||"you"; }
+function showAcct(){
+  const who=$("who");
+  if(me){ who.hidden=false; who.innerHTML=`Signed in as <b>${esc(displayName(me))}</b>`; $("acctBtn").textContent="Sign out"; }
+  else { who.hidden=true; $("acctBtn").textContent= sb ? "Sign in" : "Accounts"; }
+}
+async function initStore(){
+  if(!sb){ useDevice(); return; }
+  const {data}=await sb.auth.getSession();
+  if(data&&data.session) await useAccount(data.session.user); else useDevice();
+  sb.auth.onAuthStateChange((ev,session)=>{
+    if(ev==="SIGNED_OUT") useDevice();
+    else if(ev==="SIGNED_IN" && session && (!me||me.id!==session.user.id)) useAccount(session.user);
+    else if(ev==="USER_UPDATED" && session){ me=session.user; showAcct(); }
+  });
+}
+
+// sign-in dialog
+const dlg=$("acctDlg"); let dlgMode="in";
+function dlgSay(m,kind){ const el=$("dlgMsg"); el.textContent=m; el.className="dlg-msg"+(kind?" "+kind:""); }
+function setDlgMode(m){
+  dlgMode=m;
+  $("tabIn").setAttribute("aria-pressed",m==="in"); $("tabUp").setAttribute("aria-pressed",m==="up");
+  $("nameFld").hidden = m!=="up"; $("pwFld").hidden = m==="reset";
+  $("dlgTitle").textContent = m==="up" ? "Create your Bricko account" : m==="reset" ? "Reset your password" : "Sign in to Bricko";
+  $("dlgGo").textContent = m==="up" ? "Create account" : m==="reset" ? "Send reset email" : "Sign in";
+  $("forgotBtn").textContent = m==="reset" ? "Back to sign in" : "Forgot your password?";
+  $("fPass").autocomplete = m==="up" ? "new-password" : "current-password";
+  dlgSay("");
+}
+$("acctBtn").onclick=async()=>{
+  if(!sb){ say("Accounts aren't switched on in this copy of Bricko yet. Your builds are saved on this device."); return; }
+  if(me){ await sb.auth.signOut(); say("Signed out. You're now saving on this device."); return; }
+  setDlgMode("in"); dlg.showModal(); setTimeout(()=>$("fEmail").focus(),30);
+};
+$("dlgClose").onclick=()=>dlg.close();
+$("tabIn").onclick=()=>setDlgMode("in"); $("tabUp").onclick=()=>setDlgMode("up");
+$("forgotBtn").onclick=()=>setDlgMode(dlgMode==="reset"?"in":"reset");
+function friendly(err){
+  const m=(err&&err.message)||"";
+  if(/invalid login/i.test(m)) return "That email and password don't match. Check them, or create an account.";
+  if(/email not confirmed/i.test(m)) return "Confirm your email first: open the link we sent you, then sign in here.";
+  if(/already registered|already exists/i.test(m)) return "There's already an account with that email. Sign in instead.";
+  if(/password/i.test(m) && /6/.test(m)) return "Use a password with at least 6 characters.";
+  if(/rate limit|too many/i.test(m)) return "Too many tries. Wait a minute and try again.";
+  if(/fetch|network/i.test(m)) return "Can't reach the account server. Check your internet connection.";
+  return m || "Something went wrong. Try again.";
+}
+$("acctForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=$("fEmail").value.trim(), pass=$("fPass").value, name=$("fName").value.trim();
+  if(!/^\S+@\S+\.\S+$/.test(email)){ dlgSay("Enter a valid email address.","err"); return; }
+  if(dlgMode!=="reset" && pass.length<6){ dlgSay("Use a password with at least 6 characters.","err"); return; }
+  const go=$("dlgGo"); go.disabled=true; dlgSay(dlgMode==="up"?"Creating your account…":dlgMode==="reset"?"Sending…":"Signing in…");
+  try{
+    if(dlgMode==="up"){
+      const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{display_name:name||email.split("@")[0]}}});
+      if(error) throw error;
+      if(data.session){ dlg.close(); say(`Welcome to Bricko, ${name||email.split("@")[0]}! Your progress now saves to your account.`); }
+      else { setDlgMode("in"); $("fEmail").value=email; dlgSay("Account created. Check your email for a confirmation link, then sign in here.","ok"); }
+    } else if(dlgMode==="reset"){
+      const {error}=await sb.auth.resetPasswordForEmail(email); if(error) throw error;
+      dlgSay("If that email has an account, a reset link is on its way.","ok");
+    } else {
+      const {error}=await sb.auth.signInWithPassword({email,password:pass}); if(error) throw error;
+      dlg.close(); say("Signed in. Your builds and tasks are loading from your account.");
+    }
+  }catch(err){ dlgSay(friendly(err),"err"); }
+  go.disabled=false;
+});
+let progBusy=false, progAgain=false;
+async function saveProgress(){
+  if(!store) return; if(progBusy){ progAgain=true; return; } progBusy=true;
+  try{ await store.progress(); }catch{} progBusy=false; if(progAgain){ progAgain=false; saveProgress(); }
+}
+async function doSave(asCopy){
+  if(!store){ say("Your shelf is still opening. Try again in a moment."); return; }
+  if(!bricks.size){ say("Place a few bricks first."); return; }
+  const name=nameIn.value.trim()||"Build #"+(builds.length+1); nameIn.value=name;
+  const id=(!asCopy&&currentId)||("b"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const arr=toArr(); say("Saving…");
+  try{ await store.saveBuild(id,{kind:"build",name,blocks:arr,count:arr.length,updated:Date.now()}); currentId=id; syncSaveBtns(); renderShelf(); say(`“${name}” saved.`); }
+  catch(e){
+    const c=e&&e.code;
+    say(c==="quota_exceeded"?"Your shelf is full. Remove a build to make room."
+      :c==="invalid_argument"?"You can look at this page but not save to it. Ask the owner for edit access."
+      :c==="local"?"This device blocked storage, so the save may not stick."
+      :"Couldn't save. Check your connection and try again.");
+  }
+}
+$("saveForm").addEventListener("submit",e=>{e.preventDefault();doSave(false);});
+$("copyBtn").onclick=()=>doSave(true);
+
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function renderShelf(){
+  const el=$("shelf"); if(!store){ el.innerHTML=""; return; }
+  if(!builds.length){ el.innerHTML=`<div class="empty"><svg class="empty-ico" aria-hidden="true"><use href="#brickSym"/></svg><strong>No saved builds yet</strong>Stack some blocks on the plate, name it, and press “Save build”.</div>`; return; }
+  el.innerHTML=`<div class="cards">${builds.map(b=>`<div class="card" role="button" tabindex="0" data-id="${esc(b.id)}" data-active="${b.id===currentId}" aria-label="Load ${esc(b.name)}">
+    <div class="thumb">${thumbR?`<img alt="" src="${thumbFor(b)}">`:""}</div>
+    <div class="meta"><span class="name">${esc(b.name||"Untitled")}</span><span class="sz">${(b.blocks||[]).length} br</span><button type="button" class="del" data-del="${esc(b.id)}">Remove</button></div></div>`).join("")}</div>`;
+}
+$("shelf").addEventListener("click",e=>{
+  const del=e.target.closest("[data-del]");
+  if(del){ e.stopPropagation();
+    if(!del.classList.contains("armed")){ del.classList.add("armed"); del.textContent="Sure?"; setTimeout(()=>{ if(del.isConnected){del.classList.remove("armed");del.textContent="Remove";} },3000); return; }
+    const id=del.dataset.del, b=builds.find(x=>x.id===id);
+    store.remove(id).then(()=>{ if(currentId===id){currentId=null;syncSaveBtns();} say(`Removed “${b?b.name:"build"}”.`); }).catch(()=>say("Couldn't remove that one. Try again."));
+    return; }
+  const card=e.target.closest("[data-id]"); if(card) loadBuild(card.dataset.id);
+});
+$("shelf").addEventListener("keydown",e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.matches(".card")){ e.preventDefault(); loadBuild(e.target.dataset.id);} });
+function loadBuild(id){
+  if(guide) endGuide();
+  const b=builds.find(x=>x.id===id); if(!b) return;
+  pushUndo(); setPlate(plateAtLeast(Math.max(20,extentOf(b.blocks||[])))); setBlocks(b.blocks||[],false); currentId=id; nameIn.value=b.name||""; syncSaveBtns(); renderShelf();
+  say(`Loaded “${b.name}”. Undo puts your previous plate back.`);
+  $("view").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+}
+
+// ---------- picture to bricks ----------
+const LIN=new Float32Array(256); for(let i=0;i<256;i++){ const v=i/255; LIN[i]=v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4); }
+const toSrgb=v=>255*(v<=.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-.055);
+function toLab(r,g,b){
+  const lin=v=>{ v=Math.max(0,Math.min(255,v))/255; return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4); };
+  const R=lin(r),G=lin(g),B=lin(b), f=t=>t>.008856?Math.cbrt(t):7.787*t+16/116;
+  const X=f((R*.4124+G*.3576+B*.1805)/.95047), Y=f(R*.2126+G*.7152+B*.0722), Z=f((R*.0193+G*.1192+B*.9505)/1.08883);
+  return [116*Y-16,500*(X-Y),200*(Y-Z)];
+}
+function dE(a,b){   // CIEDE2000: how different two colors look to people
+  const [L1,a1,b1]=a, [L2,a2,b2]=b, rad=Math.PI/180, p7=25**7;
+  const C1=Math.hypot(a1,b1), C2=Math.hypot(a2,b2), Cb=(C1+C2)/2, G=.5*(1-Math.sqrt(Cb**7/(Cb**7+p7)));
+  const a1p=(1+G)*a1, a2p=(1+G)*a2, C1p=Math.hypot(a1p,b1), C2p=Math.hypot(a2p,b2);
+  const hue=(x,y)=>{ if(!x&&!y) return 0; const t=Math.atan2(y,x)/rad; return t<0?t+360:t; };
+  const h1=hue(a1p,b1), h2=hue(a2p,b2), dL=L2-L1, dC=C2p-C1p, both=C1p*C2p!==0;
+  let dh=0; if(both){ dh=h2-h1; if(dh>180) dh-=360; else if(dh<-180) dh+=360; }
+  const dH=2*Math.sqrt(C1p*C2p)*Math.sin(dh*rad/2), Lb=(L1+L2)/2, Cbp=(C1p+C2p)/2;
+  let hb=h1+h2; if(both){ if(Math.abs(h1-h2)>180) hb+=(h1+h2<360)?360:-360; hb/=2; }
+  const T=1-.17*Math.cos((hb-30)*rad)+.24*Math.cos(2*hb*rad)+.32*Math.cos((3*hb+6)*rad)-.2*Math.cos((4*hb-63)*rad);
+  const dTh=30*Math.exp(-(((hb-275)/25)**2)), RC=2*Math.sqrt(Cbp**7/(Cbp**7+p7));
+  const SL=1+(.015*(Lb-50)**2)/Math.sqrt(20+(Lb-50)**2), SC=1+.045*Cbp, SH=1+.015*Cbp*T, RT=-Math.sin(2*dTh*rad)*RC;
+  return Math.sqrt((dL/SL)**2+(dC/SC)**2+(dH/SH)**2+RT*(dC/SC)*(dH/SH));
+}
+const PAL_RGB=COLORS.map(c=>[1,3,5].map(i=>parseInt(c[2].slice(i,i+2),16)));
+const PAL_LAB=PAL_RGB.map(([r,g,b])=>toLab(r,g,b));
+const nearCache={all:new Map(),brick:new Map()};
+function nearest(r,g,b){
+  const cache=nearCache[picColors], top=picColors==="brick"?BRICK_N:PAL_LAB.length;
+  const k=(Math.round(r)>>2)<<12|(Math.round(g)>>2)<<6|(Math.round(b)>>2);
+  let c=cache.get(k); if(c!==undefined) return c;
+  const L=toLab(r,g,b); let bd=1e9; c=0;
+  // quick shortlist by straight-line distance, then the accurate formula on the closest few
+  const short=[];
+  for(let i=0;i<top;i++){ const P=PAL_LAB[i], d=(L[0]-P[0])**2+(L[1]-P[1])**2+(L[2]-P[2])**2;
+    if(short.length<16||d<short[short.length-1][0]){ short.push([d,i]); short.sort((x,y)=>x[0]-y[0]); if(short.length>16) short.pop(); } }
+  for(const [,i] of short){ const d=dE(L,PAL_LAB[i]); if(d<bd){ bd=d; c=i; } }
+  cache.set(k,c); return c;
+}
+let picDither=false, picBg="keep", picColors="all", picRect={x0:.04,y0:.04,x1:.96,y1:.96}, picSeg=null;
+let picImg=null, picStyle="wall", picSize=48, picGrid=null, picName="";
+$("picFile").addEventListener("change",e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=""; if(!f) return;
+  if(!/^image\//.test(f.type)){ say("That file isn't a picture. Choose a JPG, PNG or similar."); return; }
+  const url=URL.createObjectURL(f), im=new Image(); picName=(f.name||"").replace(/\.[^.]+$/,"").slice(0,40);
+  im.onload=()=>{ picImg=im; picSeg=null; $("picOrig").src=url; $("picOpts").hidden=false; picPreview(); say("Picture loaded. Pick a style and size, then build it step by step, or let Bricko build it for you."); };
+  im.onerror=()=>say("Couldn't read that picture. Try a JPG or PNG.");
+  im.src=url;
+});
+function pixelate(){
+  const IW=picImg.naturalWidth, IH=picImg.naturalHeight;
+  let sx=0, sy=0, sw=IW, sh=IH, seg=null;
+  if(picBg==="subject"){
+    if(!picSeg) picSeg=segmentSubject();
+    seg=picSeg;
+    if(seg){ const [a,b,c,dd]=seg.box, m=.02;      // spend every stud on the subject
+      sx=Math.max(0,(a-m)*IW); sy=Math.max(0,(b-m)*IH); sw=Math.min(IW,(c+m)*IW)-sx; sh=Math.min(IH,(dd+m)*IH)-sy; }
+  }
+  const ar=sw/sh;
+  let w,h; if(ar>=1){ w=picSize; h=Math.max(1,Math.round(picSize/ar)); } else { h=picSize; w=Math.max(1,Math.round(picSize*ar)); }
+  // average every brick's patch of the picture in linear light, so colors don't get muddy
+  const S=8, big=document.createElement("canvas"); big.width=w*S; big.height=h*S;
+  const bx=big.getContext("2d",{willReadFrequently:true}); bx.imageSmoothingEnabled=true; bx.imageSmoothingQuality="high";
+  bx.drawImage(picImg,sx,sy,sw,sh,0,0,big.width,big.height);
+  const d=bx.getImageData(0,0,big.width,big.height).data, W=big.width, px=new Array(w*h).fill(null);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    let r=0,g=0,b=0,a=0;
+    for(let j=0;j<S;j++) for(let i=0;i<S;i++){ const k=((y*S+j)*W+(x*S+i))*4, al=d[k+3]/255; r+=LIN[d[k]]*al; g+=LIN[d[k+1]]*al; b+=LIN[d[k+2]]*al; a+=al; }
+    if(a/(S*S)>=.5) px[y*w+x]=[toSrgb(r/a),toSrgb(g/a),toSrgb(b/a)];
+  }
+  sharpen(px,w,h,.45);
+  if(seg){   // drop studs that are mostly background
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ if(!px[y*w+x]) continue;
+      let on=0, n=0;
+      for(let j=0;j<4;j++) for(let i=0;i<4;i++){
+        const u=(sx+(x+(i+.5)/4)*sw/w)/IW, v=(sy+(y+(j+.5)/4)*sh/h)/IH;
+        const mx=Math.min(seg.w-1,Math.floor(u*seg.w)), my=Math.min(seg.h-1,Math.floor(v*seg.h));
+        on+=seg.mask[my*seg.w+mx]; n++; }
+      if(on/n<.6) px[y*w+x]=null; }
+  } else if(picBg==="plain") removeBackground(px,w,h);
+  const cells=[], buf=px.map(q=>q&&q.slice());
+  for(let y=0;y<h;y++){ const row=[];
+    for(let x=0;x<w;x++){ const i=y*w+x, q=buf[i];
+      if(!q){ row.push(null); continue; }
+      const c=nearest(q[0],q[1],q[2]), o=px[i];
+      row.push({c,lum:(.2126*o[0]+.7152*o[1]+.0722*o[2])/255});
+      if(picDither){   // pass the leftover color on to the neighbors (Floyd-Steinberg)
+        const P=PAL_RGB[c], er=[q[0]-P[0],q[1]-P[1],q[2]-P[2]];
+        const push=(xx,yy,f)=>{ if(xx<0||xx>=w||yy>=h) return; const t=buf[yy*w+xx]; if(!t) return; for(let k=0;k<3;k++) t[k]+=er[k]*f*.6; };
+        push(x+1,y,7/16); push(x-1,y+1,3/16); push(x,y+1,5/16); push(x+1,y+1,1/16);
+      }
+    }
+    cells.push(row);
+  }
+  return {w,h,cells};
+}
+function kmeans(pts,k,iters){
+  if(pts.length<=k) return pts.slice();
+  const cs=[]; for(let i=0;i<k;i++) cs.push(pts[Math.floor((i+.5)*pts.length/k)].slice());
+  const as=new Int32Array(pts.length);
+  for(let it=0;it<iters;it++){
+    for(let i=0;i<pts.length;i++){ const p=pts[i]; let bd=1e9,bi=0; for(let j=0;j<k;j++){ const c=cs[j], d=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2; if(d<bd){bd=d;bi=j;} } as[i]=bi; }
+    const sum=cs.map(()=>[0,0,0,0]);
+    for(let i=0;i<pts.length;i++){ const s=sum[as[i]], p=pts[i]; s[0]+=p[0]; s[1]+=p[1]; s[2]+=p[2]; s[3]++; }
+    sum.forEach((s,j)=>{ if(s[3]) cs[j]=[s[0]/s[3],s[1]/s[3],s[2]/s[3]]; });
+  }
+  return cs;
+}
+function segmentSubject(){
+  const M=180, ar=picImg.naturalWidth/picImg.naturalHeight;
+  const w=ar>=1?M:Math.max(8,Math.round(M*ar)), h=ar>=1?Math.max(8,Math.round(M/ar)):M;
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const x=c.getContext("2d",{willReadFrequently:true}); x.imageSmoothingQuality="high"; x.drawImage(picImg,0,0,w,h);
+  const d=x.getImageData(0,0,w,h).data, N2=w*h, lab=new Array(N2), alpha=new Float32Array(N2);
+  for(let i=0;i<N2;i++){ lab[i]=toLab(d[i*4],d[i*4+1],d[i*4+2]); alpha[i]=d[i*4+3]/255; }
+  const rx0=Math.round(picRect.x0*w), rx1=Math.round(picRect.x1*w), ry0=Math.round(picRect.y0*h), ry1=Math.round(picRect.y1*h);
+  const inBox=(xx,yy)=>xx>=rx0&&xx<rx1&&yy>=ry0&&yy<ry1;
+  const cx=(rx0+rx1)/2, cy=(ry0+ry1)/2, hw=Math.max(1,(rx1-rx0)/2), hh=Math.max(1,(ry1-ry0)/2);
+  const fg=new Uint8Array(N2), sample=(arr,n)=>{ if(arr.length<=n) return arr; const out=[], st=arr.length/n; for(let i=0;i<n;i++) out.push(arr[Math.floor(i*st)]); return out; };
+  // background examples: outside the box, plus a thin band just inside its edge
+  let bgIdx=[], fgIdx=[];
+  for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){ const i=yy*w+xx;
+    const band=Math.min(xx-rx0,rx1-1-xx,yy-ry0,ry1-1-yy);
+    if(!inBox(xx,yy)||band<2) bgIdx.push(i);
+    else if(Math.abs(xx-cx)<hw*.5&&Math.abs(yy-cy)<hh*.5) fgIdx.push(i); }
+  const score=new Float32Array(N2);
+  for(let it=0;it<5;it++){
+    const bgK=kmeans(sample(bgIdx,3000).map(i=>lab[i]),8,8), fgK=kmeans(sample(fgIdx,3000).map(i=>lab[i]),8,8);
+    const near=(p,K)=>{ let bd=1e9; for(const q of K){ const dd=(p[0]-q[0])**2+(p[1]-q[1])**2+(p[2]-q[2])**2; if(dd<bd) bd=dd; } return Math.sqrt(bd); };
+    for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){ const i=yy*w+xx;
+      if(!inBox(xx,yy)||alpha[i]<.5){ score[i]=-50; continue; }
+      const e=Math.hypot((xx-cx)/hw,(yy-cy)/hh);                       // 0 in the middle of the box, 1 at its edge
+      score[i]=near(lab[i],bgK)-near(lab[i],fgK)+6*(.6-e); }
+    // smooth so labels follow regions, not single pixels
+    for(let pass=0;pass<2;pass++){ const t=score.slice();
+      for(let yy=1;yy<h-1;yy++) for(let xx=1;xx<w-1;xx++){ const i=yy*w+xx; if(t[i]===-50) continue;
+        score[i]=(t[i]*4+t[i-1]+t[i+1]+t[i-w]+t[i+w])/8; } }
+    bgIdx=[]; fgIdx=[];
+    for(let i=0;i<N2;i++){ fg[i]=score[i]>0?1:0; (fg[i]?fgIdx:bgIdx).push(i); }
+    if(!fgIdx.length) break;
+  }
+  // keep the main piece(s): the biggest region and any others at least a fifth of its size
+  const comp=new Int32Array(N2).fill(-1), sizes=[];
+  for(let i=0;i<N2;i++){ if(!fg[i]||comp[i]>=0) continue; const id=sizes.length, st=[i]; comp[i]=id; let n=0;
+    while(st.length){ const j=st.pop(); n++; const xx=j%w, yy=(j-xx)/w;
+      for(const [nx,ny] of [[xx+1,yy],[xx-1,yy],[xx,yy+1],[xx,yy-1]]){ if(nx<0||ny<0||nx>=w||ny>=h) continue; const k=ny*w+nx; if(fg[k]&&comp[k]<0){ comp[k]=id; st.push(k); } } }
+    sizes.push(n); }
+  const big=Math.max(0,...sizes);
+  for(let i=0;i<N2;i++) if(fg[i]&&sizes[comp[i]]<big*.2) fg[i]=0;
+  // fill holes inside the subject
+  const out=new Uint8Array(N2), q=[];
+  for(let xx=0;xx<w;xx++){ q.push(xx,(h-1)*w+xx); } for(let yy=0;yy<h;yy++){ q.push(yy*w,yy*w+w-1); }
+  for(const i of q) if(!fg[i]) out[i]=1;
+  const st=q.filter(i=>out[i]);
+  while(st.length){ const j=st.pop(), xx=j%w, yy=(j-xx)/w;
+    for(const [nx,ny] of [[xx+1,yy],[xx-1,yy],[xx,yy+1],[xx,yy-1]]){ if(nx<0||ny<0||nx>=w||ny>=h) continue; const k=ny*w+nx; if(!fg[k]&&!out[k]){ out[k]=1; st.push(k); } } }
+  let bx0=w,by0=h,bx1=0,by1=0;
+  for(let i=0;i<N2;i++){ if(!out[i]) fg[i]=1; if(fg[i]){ const xx=i%w, yy=(i-xx)/w; if(xx<bx0) bx0=xx; if(xx>bx1) bx1=xx; if(yy<by0) by0=yy; if(yy>by1) by1=yy; } }
+  if(bx1<bx0) return null;
+  return {mask:fg,w,h,box:[bx0/w,by0/h,(bx1+1)/w,(by1+1)/h]};
+}
+function sharpen(px,w,h,amt){
+  const src=px.map(q=>q&&q.slice());
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=y*w+x, q=src[i]; if(!q) continue;
+    let n=0; const avg=[0,0,0];
+    for(const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){ if(nx<0||ny<0||nx>=w||ny>=h) continue; const t=src[ny*w+nx]; if(!t) continue; avg[0]+=t[0]; avg[1]+=t[1]; avg[2]+=t[2]; n++; }
+    if(!n) continue;
+    for(let k=0;k<3;k++) px[i][k]=Math.max(0,Math.min(255,q[k]+amt*(q[k]-avg[k]/n)));
+  }
+}
+function removeBackground(px,w,h){
+  const lab=px.map(q=>q&&toLab(q[0],q[1],q[2])), border=[];
+  for(let x=0;x<w;x++){ border.push(x,(h-1)*w+x); } for(let y=0;y<h;y++){ border.push(y*w,y*w+w-1); }
+  const bl=border.filter(i=>lab[i]);
+  if(!bl.length) return;
+  let best=null, bc=-1;
+  for(let n=0;n<bl.length;n+=Math.max(1,Math.floor(bl.length/60))){ const a=lab[bl[n]]; let c=0; for(const i of bl) if(dE(a,lab[i])<12) c++; if(c>bc){ bc=c; best=a; } }
+  if(bc<bl.length*.3) return;    // no clear plain background
+  const seen=new Uint8Array(w*h), q=[];
+  for(const i of bl) if(!seen[i] && dE(lab[i],best)<16){ seen[i]=1; q.push(i); }
+  while(q.length){ const i=q.pop(); px[i]=null; const x=i%w, y=(i-x)/w;
+    for(const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){ if(nx<0||ny<0||nx>=w||ny>=h) continue; const j=ny*w+nx;
+      if(!seen[j] && lab[j] && dE(lab[j],best)<16){ seen[j]=1; q.push(j); } } }
+  // trim the soft halo where the subject's edge blends into the background
+  const halo=[];
+  for(let i=0;i<w*h;i++){ if(!px[i]) continue; const x=i%w, y=(i-x)/w;
+    const nextToBg=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].some(([nx,ny])=>nx>=0&&ny>=0&&nx<w&&ny<h&&seen[ny*w+nx]);
+    if(nextToBg && dE(lab[i],best)<32) halo.push(i); }
+  halo.forEach(i=>{ px[i]=null; });
+}
+function picPreview(){
+  picGrid=pixelate(); if(picBg==="subject"&&!picSeg) say("Couldn't find a main subject in that box. Draw the box closer around it."); const {w,h,cells}=picGrid, S=Math.max(3,Math.floor(288/Math.max(w,h))), cv=$("picPrev");
+  cv.width=w*S; cv.height=h*S; const x=cv.getContext("2d"); x.clearRect(0,0,cv.width,cv.height);
+  cells.forEach((row,y)=>row.forEach((cell,i)=>{ if(!cell) return; x.fillStyle=COLORS[cell.c][2]; x.fillRect(i*S,y*S,S,S);
+    x.fillStyle="rgba(0,0,0,.18)"; x.fillRect(i*S,y*S+S-1,S,1); x.fillRect(i*S+S-1,y*S,1,S);
+    if(S>=6){ x.beginPath(); x.arc(i*S+S/2,y*S+S/2,S*.28,0,7); x.fillStyle="rgba(255,255,255,.22)"; x.fill(); } }));
+  const pb=picBricks(), n=pb.length, nSteps=makeSteps(pb,picStyle).length, used=new Set(pb.map(a=>a[3])).size;
+  $("picNote").textContent=`${w}×${h} studs · ${n.toLocaleString()} bricks · ${used} colors · ${nSteps} steps`;
+}
+function runs(row){ // split a row of colors into runs, then into stock brick lengths
+  const out=[]; let i=0;
+  while(i<row.length){ if(row[i]==null){ i++; continue; } let j=i; while(j<row.length&&row[j]===row[i]) j++;
+    let len=j-i, at=i; for(const L of [6,4,3,2,1]) while(len>=L){ out.push([at,L,row[i]]); at+=L; len-=L; } i=j; }
+  return out;
+}
+// how tall each stud of a 3D relief is: a rounded dome when the subject has a cut-out shape,
+// otherwise brighter parts of the picture stand taller
+function reliefHeights(cells,w,h,LV){
+  const hasGaps=cells.some(r=>r.some(c=>!c));
+  if(!hasGaps) return cells.map(row=>row.map(c=>c?1+Math.round(c.lum*(LV-1)):0));
+  const dist=new Float32Array(w*h).fill(1e9), q=[];
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++) if(!cells[y][x]){ dist[y*w+x]=0; q.push(y*w+x); }
+  for(let qi=0;qi<q.length;qi++){ const i=q[qi], x=i%w, y=(i-x)/w;
+    for(const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1],[x+1,y+1],[x-1,y-1],[x+1,y-1],[x-1,y+1]]){
+      if(nx<0||ny<0||nx>=w||ny>=h) continue; const j=ny*w+nx, nd=dist[i]+((nx!==x&&ny!==y)?1.41:1);
+      if(nd<dist[j]){ dist[j]=nd; q.push(j); } } }
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=y*w+x; dist[i]=Math.min(dist[i],x+1,y+1,w-x,h-y); }
+  let md=1; for(let i=0;i<w*h;i++) if(cells[(i/w)|0][i%w] && dist[i]>md) md=dist[i];
+  return cells.map((row,y)=>row.map((c,x)=>{ if(!c) return 0; const t=Math.sqrt(dist[y*w+x]/md);
+    return Math.max(1,Math.min(LV,Math.round(1+(LV-1)*(t*.85+c.lum*.15)))); }));
+}
+function plateFor(){ if(!picGrid) return N; const {w,h}=picGrid; return plateAtLeast(picStyle==="wall"?w:Math.max(w,h)); }
+function picBricks(np){
+  np=np||plateFor();
+  const {w,h,cells}=picGrid, ox=Math.floor((np-w)/2), arr=[];
+  if(picStyle==="flat"){
+    const oz=Math.floor((np-h)/2);
+    cells.forEach((row,y)=>runs(row.map(c=>c&&c.c)).forEach(([x,L,c])=>arr.push([ox+x,0,oz+y,c,L,1])));
+  } else if(picStyle==="wall"){
+    const z=Math.floor(np/2), hh=Math.min(h,H);
+    cells.slice(h-hh).forEach((row,y)=>runs(row.map(c=>c&&c.c)).forEach(([x,L,c])=>arr.push([ox+x,hh-1-y,z,c,L,1])));
+  } else {
+    const oz=Math.floor((np-h)/2), LV=Math.min(12,Math.max(4,Math.round(Math.max(w,h)/8)));
+    const heights=reliefHeights(cells,w,h,LV);
+    for(let lvl=0;lvl<LV;lvl++) cells.forEach((row,y)=>runs(row.map((c,i)=>c&&heights[y][i]>lvl?c.c:null)).forEach(([x,L,c])=>arr.push([ox+x,lvl,oz+y,c,L,1])));
+  }
+  return arr;
+}
+document.querySelectorAll("[data-pc]").forEach(b=>{
+  b.textContent = b.dataset.pc==="all" ? `All colors (${COLORS.length})` : `Brick colors (${BRICK_N})`;
+  b.onclick=()=>{ picColors=b.dataset.pc; document.querySelectorAll("[data-pc]").forEach(x=>x.setAttribute("aria-pressed",x===b)); if(picImg) picPreview(); };
+});
+$("moreCol").onclick=()=>{ const all=$("sws").classList.toggle("all"); $("moreCol").setAttribute("aria-expanded",all); $("moreCol").textContent=all?"Show fewer colors":"Show all colors"; };
+$("ditherSw").onclick=()=>{ picDither=!picDither; $("ditherSw").setAttribute("aria-checked",picDither); if(picImg) picPreview(); };
+document.querySelectorAll("[data-bg]").forEach(b=>b.onclick=()=>{
+  picBg=b.dataset.bg; document.querySelectorAll("[data-bg]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  const sub=picBg==="subject";
+  $("subjHelp").hidden=!sub; document.querySelector(".piccmp").classList.toggle("subject",sub); $("selBox").hidden=!sub;
+  $("origCap").textContent=sub?"Drag a box around the main thing":"Your picture";
+  drawSelBox(); if(picImg) picPreview();
+});
+function drawSelBox(){ const b=$("selBox"), r=picRect;
+  b.style.left=r.x0*100+"%"; b.style.top=r.y0*100+"%"; b.style.width=(r.x1-r.x0)*100+"%"; b.style.height=(r.y1-r.y0)*100+"%"; }
+$("resetBox").onclick=()=>{ picRect={x0:.04,y0:.04,x1:.96,y1:.96}; picSeg=null; drawSelBox(); if(picImg) picPreview(); };
+(()=>{ const ow=$("origWrap"); let start=null, prev=null;
+  const at=e=>{ const r=ow.getBoundingClientRect(); return [Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]; };
+  ow.addEventListener("pointerdown",e=>{ if(picBg!=="subject"||!picImg) return; e.preventDefault(); ow.setPointerCapture(e.pointerId); start=at(e); prev={...picRect}; });
+  ow.addEventListener("pointermove",e=>{ if(!start) return; const q=at(e);
+    picRect={x0:Math.min(start[0],q[0]),y0:Math.min(start[1],q[1]),x1:Math.max(start[0],q[0]),y1:Math.max(start[1],q[1])}; drawSelBox(); });
+  const end=()=>{ if(!start) return; start=null;
+    if(picRect.x1-picRect.x0<.05||picRect.y1-picRect.y0<.05){ picRect=prev; drawSelBox(); return; }
+    picSeg=null; picPreview(); };
+  ow.addEventListener("pointerup",end); ow.addEventListener("pointercancel",end);
+})();
+
+$("picOpts").addEventListener("click",e=>{
+  const s=e.target.closest("[data-ps]"), z=e.target.closest("[data-pz]");
+  if(s){ picStyle=s.dataset.ps; document.querySelectorAll("[data-ps]").forEach(b=>b.setAttribute("aria-pressed",b===s)); picPreview(); }
+  if(z){ picSize=+z.dataset.pz; document.querySelectorAll("[data-pz]").forEach(b=>b.setAttribute("aria-pressed",b===z)); picPreview(); }
+});
+$("picBuild").onclick=()=>{
+  if(!picGrid) return;
+  setPlay("free");
+  const np=Math.max(N,plateFor()), arr=picBricks(np);
+  pushUndo(); setPlate(np); setBlocks(arr,false);
+  currentId=null; nameIn.value=picName; syncSaveBtns(); renderShelf(); picCamera();
+  startBuildAnim(makeSteps(arr,picStyle).flat());
+  say(`Built your picture with ${arr.length.toLocaleString()} bricks. Undo puts the plate back the way it was.`);
+};
+
+// ---------- settings: appearance + music ----------
+const IS_APP = !!window.BRICKO_CONFIG;
+const SKEY = "bricko.settings";
+const hostTheme = document.documentElement.getAttribute("data-theme");
+let settings = {theme:"system", music:false, source:"tune", link:"", volume:60};
+try{ Object.assign(settings, JSON.parse(localStorage.getItem(SKEY)||"{}")); }catch{}
+if(!IS_APP && settings.source==="link") settings.source="tune";
+function saveSettings(){ try{ localStorage.setItem(SKEY, JSON.stringify(settings)); }catch{} }
+
+function applyThemeSetting(){
+  const r=document.documentElement;
+  if(settings.theme==="system"){ if(hostTheme) r.setAttribute("data-theme",hostTheme); else r.removeAttribute("data-theme"); }
+  else r.setAttribute("data-theme",settings.theme);
+  r.setAttribute("data-style",settings.future?"future":"classic");
+  document.querySelectorAll("[data-th]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.th===settings.theme));
+  const fs=$("futSw"), fb=$("futBtn"); if(fs) fs.setAttribute("aria-checked",!!settings.future); if(fb) fb.setAttribute("aria-pressed",!!settings.future);
+}
+function toggleFuture(){ settings.future=!settings.future; saveSettings(); applyThemeSetting();
+  say(settings.future?"Future mode on. Switch it off any time with the ✦ Future button.":"Future mode off. Back to the classic look."); }
+applyThemeSetting();
+
+// ----- built-in tune (Web Audio) -----
+let actx=null, tuneGain=null, tuneTimer=null, tuneStep=0, tuneNext=0;
+const BPM=96, STEP=60/BPM/2;
+const CHORDS=[[60,64,67],[57,60,64],[53,57,60],[55,59,62]];   // C  Am  F  G
+const PENTA=[60,62,64,67,69,72,74,76,79,81];
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+const MEL=(()=>{ let seed=11; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647; const out=[]; let idx=4;
+  for(let i=0;i<64;i++){
+    const ch=CHORDS[Math.floor(Math.floor(i/8)/2)];
+    if(i%8===0){ const tgt=ch[Math.floor(rnd()*3)]+12; idx=PENTA.reduce((b,n,j)=>Math.abs(n-tgt)<Math.abs(PENTA[b]-tgt)?j:b,0); out.push(PENTA[idx]); continue; }
+    if(rnd()<.38){ out.push(null); continue; }
+    idx=Math.max(0,Math.min(PENTA.length-1, idx+[-2,-1,-1,1,1,2][Math.floor(rnd()*6)])); out.push(PENTA[idx]);
+  } return out; })();
+function blip(t,freq,dur,type,peak){
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(tuneGain); o.start(t); o.stop(t+dur+0.05);
+}
+function scheduleTune(){
+  while(tuneNext < actx.currentTime+0.2){
+    const i=tuneStep%64, ch=CHORDS[Math.floor(Math.floor(i/8)/2)], m=MEL[i];
+    if(m) blip(tuneNext,mtof(m),STEP*1.6,"triangle",.22);
+    if(i%4===0) blip(tuneNext,mtof(ch[0]-24),STEP*3.6,"sine",.34);
+    if(i%2===1) blip(tuneNext,mtof(ch[(i>>1)%3]),STEP*1.2,"sine",.07);
+    tuneNext+=STEP; tuneStep++;
+  }
+}
+function startTune(){
+  const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return false;
+  if(!actx) actx=new AC();
+  if(actx.state==="suspended") actx.resume();
+  if(!tuneGain){ tuneGain=actx.createGain(); tuneGain.connect(actx.destination); }
+  tuneGain.gain.value=vol()*0.5;
+  if(!tuneTimer){ tuneNext=actx.currentTime+0.05; tuneTimer=setInterval(scheduleTune,25); }
+  return true;
+}
+function stopTune(){ if(tuneTimer){ clearInterval(tuneTimer); tuneTimer=null; } }
+
+// ----- song links, YouTube and files -----
+const audioEl=$("songAudio");
+let yt=null, ytApi=null, fileUrl=null, fileName="", playTok=0, nowSource=null, unlocked=false;
+const vol=()=>settings.volume/100;
+function ytInfo(u){
+  try{ const x=new URL(u), h=x.hostname.replace(/^(www|m|music)\./,"");
+    if(h==="youtu.be"){ const v=x.pathname.slice(1).split("/")[0]; if(v) return {v, list:x.searchParams.get("list")}; }
+    if(h==="youtube.com"||h==="youtube-nocookie.com"){
+      let v=x.searchParams.get("v"); const m=x.pathname.match(/^\/(shorts|embed|live)\/([\w-]{6,})/); if(m) v=m[2];
+      const list=x.searchParams.get("list"); if(v||list) return {v, list};
+    }
+  }catch{} return null;
+}
+const BLOCKED=[[/spotify\.com|spotify\.link/,"Spotify"],[/music\.apple\.com|itunes\.apple\.com/,"Apple Music"],[/jiosaavn\.com|saavn\.com/,"JioSaavn"],
+  [/gaana\.com/,"Gaana"],[/wynk\.in/,"Wynk"],[/music\.amazon|amazon\.[a-z.]+\/music/,"Amazon Music"],[/soundcloud\.com|on\.soundcloud/,"SoundCloud"],[/deezer\.com/,"Deezer"]];
+function blockedMsg(link){
+  for(const [re,name] of BLOCKED) if(re.test(link)) return `${name} links can't play inside Bricko, because ${name} only plays songs in its own app. Paste a YouTube link instead, or a direct link to an audio file.`;
+  return "";
+}
+function loadYT(){
+  if(window.YT && window.YT.Player) return Promise.resolve();
+  if(ytApi) return ytApi;
+  ytApi=new Promise((res,rej)=>{
+    const prev=window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady=()=>{ if(prev) try{prev();}catch{} res(); };
+    const sc=document.createElement("script"); sc.src="https://www.youtube.com/iframe_api";
+    sc.onerror=()=>{ ytApi=null; rej({yt:"load"}); }; document.head.appendChild(sc);
+    setTimeout(()=>rej({yt:"load"}),15000);
+  });
+  return ytApi;
+}
+function ytErrorText(code){
+  if(code===101||code===150) return "The owner of that video doesn't allow it to play inside other apps. Try a different YouTube link.";
+  if(code===100) return "That YouTube video was removed or made private.";
+  if(code===2) return "That YouTube link looks incomplete. Copy it again from the Share button.";
+  return "YouTube couldn't play that video here. Try a different link.";
+}
+function playYT(info,tok){
+  return new Promise((res,rej)=>{
+    $("ytHost").innerHTML='<div id="ytFrame"></div>';
+    const vars={autoplay:1,controls:0,playsinline:1,disablekb:1,loop:1};
+    if(info.list){ vars.listType="playlist"; vars.list=info.list; }
+    else vars.playlist=info.v;                       // lets one video repeat
+    let settled=false;
+    yt=new YT.Player("ytFrame",{width:200,height:200,videoId:info.v||undefined,playerVars:vars,events:{
+      onReady:e=>{ if(tok!==playTok){ try{e.target.destroy();}catch{} return; } e.target.setVolume(settings.volume); e.target.playVideo(); settled=true; res(); },
+      onStateChange:e=>{ if(e.data===0 && !info.list){ e.target.seekTo(0); e.target.playVideo(); } },
+      onError:e=>{ const t=ytErrorText(e.data); if(!settled){ settled=true; rej({msg:t}); } else setNow(t,true); }
+    }});
+  });
+}
+function stopAll(){
+  stopTune();
+  try{ audioEl.pause(); }catch{} audioEl.removeAttribute("src"); try{ audioEl.load(); }catch{}
+  if(yt){ try{ yt.destroy(); }catch{} yt=null; } $("ytHost").innerHTML="";
+  nowSource=null;
+}
+function setNow(t,err){ const el=$("nowPlaying"); el.textContent=t; el.classList.toggle("err",!!err); }
+async function startMusic(){
+  const tok=++playTok; stopAll();
+  if(!settings.music){ setNow("Music is off."); return; }
+  if(!unlocked){ setNow("Music starts as soon as you tap or click anywhere."); return; }
+  const src=settings.source;
+  try{
+    if(src==="tune"){
+      if(!startTune()){ setNow("This device can't play the built-in tune.",true); return; }
+      nowSource="tune"; setNow("Now playing: Bricko tune");
+    } else if(src==="file"){
+      if(!fileUrl && songReady){ await songReady; if(tok!==playTok) return; }
+      if(!fileUrl){ setNow("Choose a song file to play."); return; }
+      audioEl.src=fileUrl; audioEl.volume=vol(); await audioEl.play();
+      if(tok!==playTok) return; nowSource="audio"; setNow("Now playing: "+fileName);
+    } else {
+      const link=(settings.link||"").trim();
+      if(!link){ setNow("Paste a song link and press Play."); return; }
+      if(!/^https?:\/\//i.test(link)){ setNow("That doesn't look like a link. It should start with https://",true); return; }
+      const b=blockedMsg(link); if(b){ setNow(b,true); return; }
+      setNow("Loading your song…");
+      const info=ytInfo(link);
+      if(info){
+        try{ await loadYT(); }catch{ if(tok===playTok) setNow("Couldn't reach YouTube. Check your internet connection.",true); return; }
+        if(tok!==playTok) return;
+        await playYT(info,tok); if(tok!==playTok) return;
+        nowSource="yt"; setNow("Now playing from YouTube");
+      } else {
+        audioEl.src=link; audioEl.volume=vol(); await audioEl.play();
+        if(tok!==playTok) return; nowSource="audio"; setNow("Now playing your song link");
+      }
+    }
+  }catch(err){
+    if(tok!==playTok) return;
+    if(err && err.msg){ setNow(err.msg,true); return; }
+    if(err && err.name==="NotAllowedError"){ unlocked=false; setNow("Tap or click anywhere to start the music."); return; }
+    setNow(src==="file" ? "Couldn't play that file. Try an MP3 or M4A song."
+      : IS_APP ? "Couldn't play that link. Use a YouTube link, or a direct link to an audio file (ending in .mp3, .m4a or .ogg)."
+      : "This web version can't play songs from links. Choose a song file, or use the Bricko app for Windows or Android.", true);
+  }
+}
+audioEl.addEventListener("error",()=>{ if(nowSource==="audio") setNow("The song stopped because it couldn't be loaded. Try another link or file.",true); });
+function unlock(){
+  if(unlocked) return; unlocked=true;
+  removeEventListener("pointerdown",unlock,true); removeEventListener("keydown",unlock,true);
+  if(settings.music) startMusic();
+}
+addEventListener("pointerdown",unlock,true); addEventListener("keydown",unlock,true);
+
+// ----- settings panel -----
+const setDlg=$("setDlg");
+const SOURCES = IS_APP ? [["tune","Bricko tune"],["link","Song link"],["file","Song file"]] : [["tune","Bricko tune"],["file","Song file"]];
+$("srcSeg").style.gridTemplateColumns=`repeat(${SOURCES.length},1fr)`;
+$("srcSeg").innerHTML=SOURCES.map(([k,l])=>`<button type="button" data-src="${k}" aria-pressed="false">${l}</button>`).join("");
+$("webNote").hidden=IS_APP;
+function renderSettings(){
+  applyThemeSetting();
+  $("musicSw").setAttribute("aria-checked",settings.music);
+  document.querySelectorAll("[data-src]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.src===settings.source));
+  $("srcTune").hidden=settings.source!=="tune"; $("srcLink").hidden=settings.source!=="link"; $("srcFile").hidden=settings.source!=="file";
+  $("volume").value=settings.volume; $("volVal").textContent=settings.volume+"%";
+  if(document.activeElement!==$("songLink")) $("songLink").value=settings.link||"";
+  renderSongs();
+}
+$("futBtn").onclick=toggleFuture;
+$("futSw").onclick=toggleFuture;
+$("setBtn").onclick=()=>{ renderSettings(); setDlg.showModal(); };
+$("setClose").onclick=$("setDone").onclick=()=>setDlg.close();
+setDlg.addEventListener("click",e=>{ if(e.target===setDlg) setDlg.close(); });
+document.querySelectorAll("[data-th]").forEach(b=>b.onclick=()=>{ settings.theme=b.dataset.th; saveSettings(); applyThemeSetting(); });
+$("musicSw").onclick=()=>{ settings.music=!settings.music; saveSettings(); renderSettings(); startMusic(); };
+$("srcSeg").addEventListener("click",e=>{
+  const b=e.target.closest("[data-src]"); if(!b) return;
+  settings.source=b.dataset.src; saveSettings(); renderSettings();
+  if(settings.music) startMusic(); else setNow("Turn on Background music to play.");
+});
+function playLink(){
+  settings.link=$("songLink").value.trim(); settings.source="link"; settings.music=true; saveSettings(); renderSettings(); startMusic();
+}
+$("songPlay").onclick=playLink;
+$("songLink").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); playLink(); } });
+// saved songs live in this device's browser storage (IndexedDB), so they come back next time
+const songDB=(()=>{
+  let dbp=null;
+  const open=()=>dbp||(dbp=new Promise((res,rej)=>{
+    try{ const r=indexedDB.open("bricko-music",1);
+      r.onupgradeneeded=()=>r.result.createObjectStore("songs",{keyPath:"id"});
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); r.onblocked=()=>rej(new Error("blocked")); }
+    catch(err){ rej(err); } }));
+  const run=async(mode,fn)=>{ const db=await open();
+    return new Promise((res,rej)=>{ const t=db.transaction("songs",mode), req=fn(t.objectStore("songs"));
+      t.oncomplete=()=>res(req&&req.result); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error||new Error("aborted")); }); };
+  return { put:x=>run("readwrite",st=>st.put(x)), get:id=>run("readonly",st=>st.get(id)),
+           del:id=>run("readwrite",st=>st.delete(id)), all:()=>run("readonly",st=>st.getAll()) };
+})();
+let songs=[];
+function renderSongs(){
+  const el=$("songList"); if(!el) return;
+  $("fileNote").textContent = songs.length ? "Your saved songs:" : "MP3, M4A, OGG or WAV. Songs you add are saved on this device.";
+  el.innerHTML=songs.map(x=>{ const on=x.id===settings.songId&&settings.source==="file";
+    return `<div class="song${on?" on":""}"><button type="button" class="song-play" data-song="${esc(x.id)}" aria-pressed="${on}">${on?"♪":"▶"} ${esc(x.name)}</button><small>${(x.size/1048576).toFixed(1)} MB</small><button type="button" class="song-del" data-del-song="${esc(x.id)}" aria-label="Delete ${esc(x.name)}">✕</button></div>`; }).join("");
+}
+async function useSong(id){
+  try{ const x=await songDB.get(id); if(!x||!x.blob) return false;
+    if(fileUrl) URL.revokeObjectURL(fileUrl);
+    fileUrl=URL.createObjectURL(x.blob); fileName=x.name; settings.songId=id; saveSettings(); return true; }
+  catch{ return false; }
+}
+const songReady=(async()=>{
+  try{ songs=((await songDB.all())||[]).map(x=>({id:x.id,name:x.name,size:x.size||0,added:x.added||0})).sort((a,b)=>a.added-b.added); }catch{ songs=[]; }
+  if(settings.source==="file" && !(settings.songId && await useSong(settings.songId))){ settings.source="tune"; saveSettings(); }
+  renderSettings();
+})();
+$("songFile").addEventListener("change",async e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=""; if(!f) return;
+  if(f.type && !/^audio\//.test(f.type)){ setNow("That file isn't a song. Choose an MP3, M4A, OGG or WAV file.",true); return; }
+  if(fileUrl) URL.revokeObjectURL(fileUrl);
+  fileUrl=URL.createObjectURL(f); fileName=f.name;
+  const id="s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), added=Date.now();
+  settings.source="file"; settings.music=true; settings.songId=id; saveSettings(); renderSettings(); startMusic();
+  try{
+    await songDB.put({id,name:f.name,size:f.size,type:f.type,added,blob:f});
+    songs.push({id,name:f.name,size:f.size,added}); renderSongs();
+  }catch{
+    settings.songId=null; saveSettings();
+    $("fileNote").textContent="This song is playing, but this device didn't have room to save it for next time.";
+  }
+});
+$("songList").addEventListener("click",async e=>{
+  const pl=e.target.closest("[data-song]");
+  if(pl){
+    if(await useSong(pl.dataset.song)){ settings.source="file"; settings.music=true; saveSettings(); renderSettings(); startMusic(); }
+    else setNow("Couldn't open that saved song. Try adding it again.",true);
+    return;
+  }
+  const d=e.target.closest("[data-del-song]"); if(!d) return;
+  if(!d.classList.contains("armed")){ d.classList.add("armed"); d.textContent="Delete?"; setTimeout(()=>{ if(d.isConnected){ d.classList.remove("armed"); d.textContent="✕"; } },3000); return; }
+  const id=d.dataset.delSong, gone=songs.find(x=>x.id===id);
+  try{ await songDB.del(id); }catch{}
+  songs=songs.filter(x=>x.id!==id);
+  if(settings.songId===id){
+    settings.songId=null;
+    if(settings.source==="file"){ stopAll(); if(fileUrl){ URL.revokeObjectURL(fileUrl); fileUrl=null; fileName=""; } setNow("Song deleted. Add another song or switch to the Bricko tune."); }
+    saveSettings();
+  }
+  renderSongs(); if(gone) say(`Deleted “${gone.name}” from your saved songs.`);
+});
+$("volume").addEventListener("input",e=>{
+  settings.volume=+e.target.value; $("volVal").textContent=settings.volume+"%";
+  if(tuneGain && actx) tuneGain.gain.setTargetAtTime(vol()*0.5,actx.currentTime,0.05);
+  audioEl.volume=vol(); if(yt && yt.setVolume) try{ yt.setVolume(settings.volume); }catch{}
+});
+$("volume").addEventListener("change",saveSettings);
+renderSettings();
+if(settings.music) setNow("Music starts as soon as you tap or click anywhere.");
+
+// ---------- step-by-step picture building ----------
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function makeSteps(arr, style){
+  const rowKey = style==="wall" ? b=>b.y : style==="flat" ? b=>b.z : b=>b.y*100+b.z;
+  const lvlKey = style==="relief" ? b=>b.y : ()=>0;
+  const bs = arr.map(([x,y,z,c,w=1,d=1])=>({x,y,z,c,w,d,done:false})).sort((a,b)=>rowKey(a)-rowKey(b)||a.x-b.x);
+  const rows=[];
+  for(const b of bs){ const k=rowKey(b); if(!rows.length||rows[rows.length-1].k!==k) rows.push({k,lvl:lvlKey(b),bricks:[]}); rows[rows.length-1].bricks.push(b); }
+  const steps=[]; let cur=null;
+  for(const r of rows){
+    if(cur && cur.lvl===r.lvl && cur.bricks.length+r.bricks.length<=8) cur.bricks.push(...r.bricks);
+    else { cur={lvl:r.lvl,bricks:[...r.bricks]}; steps.push(cur); }
+  }
+  return steps.map(s=>s.bricks);
+}
+function picCamera(){
+  if(!ok3d||!picGrid) return;
+  const {w,h}=picGrid, big=Math.max(w,h);
+  if(picStyle==="wall"){ controls.target.set(0,h/2,0); camera.position.set(big*.25,h/2+big*.2,big*1.15+12); }
+  else if(picStyle==="flat"){ controls.target.set(0,0,0); camera.position.set(0,big*1.15+10,big*.45+6); }
+  else { controls.target.set(0,1,0); camera.position.set(big*.3,big*.95+10,big*.85+8); }
+}
+function miniShape(w,h){ if(!mini) return; mini.setSize(w,h,false); miniCam.aspect=w/h; miniCam.updateProjectionMatrix(); }
+
+// see-through bricks showing where the current step goes
+let guideGhosts=null; const ghostMats={}, ghostEdges={}, prevMats={};
+function gMat(c){ return ghostMats[c]||(ghostMats[c]=new THREE.MeshBasicMaterial({color:COLORS[c][2],transparent:true,opacity:.35,depthWrite:false})); }
+function gEdge(c){ return ghostEdges[c]||(ghostEdges[c]=new THREE.LineBasicMaterial({color:new THREE.Color(COLORS[c][2]).multiplyScalar(.6)})); }
+function pMat(c){ return prevMats[c]||(prevMats[c]=new THREE.MeshStandardMaterial({color:COLORS[c][2],transparent:true,opacity:.2,depthWrite:false})); }
+function renderGhosts(){
+  if(!ok3d||!scene) return;
+  if(!guideGhosts){ guideGhosts=new THREE.Group(); scene.add(guideGhosts); }
+  guideGhosts.clear();
+  if(!guide) return;
+  for(const b of guide.steps[guide.idx]) if(!b.done){
+    const g=brickGeo(b.w,b.d), m=new THREE.Mesh(g.box,gMat(b.c));
+    m.add(new THREE.LineSegments(g.edge,gEdge(b.c)));
+    m.position.set(b.x+O+b.w/2,b.y+.5,b.z+O+b.d/2); guideGhosts.add(m);
+  }
+}
+function guideSnap(cell,w,d){
+  for(const b of guide.steps[guide.idx]){
+    if(b.done||cell[1]!==b.y) continue;
+    if(cell[0]<b.x||cell[0]>=b.x+b.w||cell[2]<b.z||cell[2]>=b.z+b.d) continue;
+    if((b.w===w&&b.d===d)||(b.w===d&&b.d===w)) return b;
+  }
+  return null;
+}
+// small model in the corner: earlier steps faded, this step solid
+function guideMini(){
+  if(!miniScene) return;
+  if(miniGroup){ miniScene.remove(miniGroup); disposeGroup(miniGroup); }
+  const all=guide.steps.flat();
+  let mn=[1e9,1e9], mx=[-1e9,-1e9], top=0;
+  all.forEach(b=>{ mn=[Math.min(mn[0],b.x),Math.min(mn[1],b.z)]; mx=[Math.max(mx[0],b.x+b.w),Math.max(mx[1],b.z+b.d)]; top=Math.max(top,b.y+1); });
+  const cx=(mn[0]+mx[0])/2, cz=(mn[1]+mx[1])/2, prev=[];
+  for(let i=0;i<guide.idx;i++) prev.push(...guide.steps[i]);
+  const gp=makeBrickGroup(prev,-cx,-cz,false), gc=makeBrickGroup(guide.steps[guide.idx],-cx,-cz,false);
+  gp.traverse(o=>{ if(o.isInstancedMesh) o.material=fadeMat; else if(o.isLineSegments) o.visible=false; });
+  const g=new THREE.Group(); g.add(gp,gc);
+  g.userData={size:Math.max(mx[0]-mn[0],mx[1]-mn[1],top),h:top};
+  miniGroup=g; miniScene.add(g); fit(miniCam,g);
+}
+function partGroups(){
+  const m=new Map();
+  for(const b of guide.steps[guide.idx]){
+    const k=b.c+":"+Math.min(b.w,b.d)+"x"+Math.max(b.w,b.d);
+    if(!m.has(k)) m.set(k,{c:b.c,w:b.w,d:b.d,n:0,left:0});
+    const p=m.get(k); p.n++; if(!b.done) p.left++;
+  }
+  return [...m.values()];
+}
+function isSel(p){ const [w,d]=dims(); return color===p.c && ((w===p.w&&d===p.d)||(w===p.d&&d===p.w)); }
+function renderStepColors(ps){
+  const box=$("stepCols");
+  if(!guide){ box.hidden=true; box.innerHTML=""; return; }
+  const by=new Map();
+  for(const p of ps){ if(!by.has(p.c)) by.set(p.c,{c:p.c,left:0,n:0}); const o=by.get(p.c); o.left+=p.left; o.n+=p.n; }
+  const list=[...by.values()].sort((a,b)=>(b.left>0)-(a.left>0)||b.left-a.left);
+  box.hidden=false;
+  box.innerHTML=`<p class="stepcols-h">Colors for step ${guide.idx+1} · tap one to pick it up</p>`+list.map(o=>
+    `<button type="button" class="stepcol${o.left?"":" done"}" data-sc="${o.c}" aria-pressed="${color===o.c}"><i style="background:${COLORS[o.c][2]}"></i>${COLORS[o.c][1]}<small>${o.left?o.left+" left":"done ✓"}</small></button>`).join("");
+}
+$("stepCols").addEventListener("click",e=>{
+  const b=e.target.closest("[data-sc]"); if(!b||!guide) return;
+  const c=+b.dataset.sc, ps=partGroups(), p=ps.find(q=>q.c===c&&q.left)||ps.find(q=>q.c===c);
+  if(p) selectPart(p);
+});
+function renderParts(){
+  if(!guide) return;
+  const ps=partGroups(); guide.parts=ps; renderStepColors(ps);
+  $("guideParts").innerHTML=ps.map((p,i)=>{ const lo=Math.min(p.w,p.d), hi=Math.max(p.w,p.d);
+    return `<button type="button" class="part${p.left?"":" done"}" data-pi="${i}" aria-pressed="${isSel(p)}" title="${COLORS[p.c][1]} ${lo}×${hi} brick" aria-label="${p.left} more ${COLORS[p.c][1]} ${lo} by ${hi} brick${p.left===1?"":"s"}">
+      <span class="pips" style="grid-template-columns:repeat(${p.w},1fr);--c:${COLORS[p.c][2]}">${"<i></i>".repeat(p.w*p.d)}</span>${p.left?p.left+"×":"✓"}</button>`; }).join("");
+}
+function selectPart(p){
+  color=p.c;
+  const lo=Math.min(p.w,p.d), hi=Math.max(p.w,p.d), z=SIZES.find(q=>q[0]===lo&&q[1]===hi)||SIZES[0];
+  size=z; turned=!(z[0]===p.w&&z[1]===p.d);
+  setMode("build");
+  $("sws").querySelectorAll(".sw").forEach(el=>el.setAttribute("aria-pressed",+el.dataset.c===color));
+  renderSizes(); renderParts(); if(ok3d) refreshGhost();
+}
+$("guideParts").addEventListener("click",e=>{ const b=e.target.closest("[data-pi]"); if(b&&guide) selectPart(guide.parts[+b.dataset.pi]); });
+
+function guideCheck(){
+  const st=guide.steps[guide.idx]; let doneN=0;
+  for(const b of st){
+    let ok=true;
+    for(let i=0;i<b.w&&ok;i++) for(let j=0;j<b.d;j++){ const id=cells.get(key(b.x+i,b.y,b.z+j)); if(id==null||bricks.get(id).c!==b.c){ ok=false; break; } }
+    b.done=ok; if(ok) doneN++;
+  }
+  let wrong=0;
+  for(const br of bricks.values()){
+    let bad=false;
+    for(let i=0;i<br.w&&!bad;i++) for(let j=0;j<br.d;j++) if(guide.target.get(key(br.x+i,br.y,br.z+j))!==br.c){ bad=true; break; }
+    if(bad) wrong++;
+  }
+  const n=guide.steps.length, last=guide.idx===n-1, complete=doneN===st.length;
+  $("taskName").textContent = complete&&last ? "All done!" : `Step ${guide.idx+1} of ${n}`;
+  $("meter").style.width=Math.round(100*doneN/st.length)+"%";
+  $("taskProg").innerHTML=`${doneN} / ${st.length} bricks`+(wrong?` · <span class="wrong">${wrong} wrong</span>`:"");
+  $("taskCard").classList.toggle("done",complete);
+  $("gNext").hidden=!complete; $("gNext").textContent=last?"Finish":"Next step ▶";
+  $("gBack").disabled=guide.idx===0; $("gAuto").disabled=complete;
+  renderGhosts();
+  const ps=partGroups();
+  if(!complete && !ps.some(p=>p.left&&isSel(p))){ const nx=ps.find(p=>p.left); if(nx) selectPart(nx); else renderParts(); }
+  else renderParts();
+  if(complete && guide.announced!==guide.idx){
+    guide.announced=guide.idx;
+    say(last ? `You built the whole picture with ${guide.total} bricks! Press Finish, then name it and save it.`
+             : `Step ${guide.idx+1} done! Press Next step.`);
+  }
+}
+function guideStep(){ guideMini(); say(`Step ${guide.idx+1} of ${guide.steps.length}: put bricks where you see the see-through bricks.`); guideCheck(); }
+function startGuide(){
+  if(!picGrid) return;
+  const np=Math.max(N,plateFor()), arr=picBricks(np), steps=makeSteps(arr,picStyle);
+  if(!steps.length){ say("That picture has nothing to build. Try another picture."); return; }
+  setPlay("free");
+  pushUndo(); setPlate(np); setBlocks([],false); currentId=null; nameIn.value=picName; syncSaveBtns(); renderShelf();
+  const target=new Map();
+  arr.forEach(([x,y,z,c,w=1,d=1])=>{ for(let i=0;i<w;i++) for(let j=0;j<d;j++) target.set(key(x+i,y,z+j),c); });
+  guide={steps,idx:0,target,total:arr.length,announced:-1,parts:[]};
+  const card=$("taskCard"); card.hidden=false; card.classList.add("guiding");
+  $("guideBox").hidden=false; $("gExit").hidden=false; $("taskCode").hidden=true; $("nextBtn").hidden=true;
+  miniShape(230,140); picCamera(); guideStep();
+  say(`Step-by-step build: ${steps.length} steps. Put a brick where you see the see-through bricks. The right size and color are picked for you.`);
+  if(innerWidth<900) $("view").scrollIntoView({behavior:REDUCED?"auto":"smooth",block:"start"});
+}
+function endGuide(){
+  if(!guide) return; guide=null;
+  if(guideGhosts) guideGhosts.clear();
+  const card=$("taskCard"); card.classList.remove("guiding","done");
+  $("guideBox").hidden=true; $("gExit").hidden=true; $("taskCode").hidden=false;
+  renderStepColors([]);
+  miniShape(200,200);
+  card.hidden=play==="free"; $("taskGroup").hidden=play==="free";
+  showTask();
+}
+$("picGuide").onclick=startGuide;
+$("gNext").onclick=()=>{
+  if(!guide) return;
+  if(guide.idx===guide.steps.length-1){ const n=guide.total; endGuide(); say(`Finished! Your picture is built with ${n} bricks. Name it and press Save build to keep it.`); nameIn.focus(); return; }
+  guide.idx++; guideStep();
+};
+$("gBack").onclick=()=>{ if(guide&&guide.idx>0){ guide.idx--; guideStep(); } };
+$("gAuto").onclick=()=>{
+  if(!guide) return;
+  const st=guide.steps[guide.idx];
+  mutate(()=>{ for(const b of st){ if(b.done) continue;
+    for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++){ const id=cells.get(key(b.x+i,b.y,b.z+j)); if(id!=null) removeBrick(id); }
+    addBrick(b.x,b.y,b.z,b.w,b.d,b.c); } });
+};
+$("gExit").onclick=()=>{ endGuide(); say("Stopped the step-by-step build. Your bricks stay on the plate."); };
+
+renderPlates();
+// ---------- moving around: WASD / arrow keys and a touch joystick ----------
+const held=new Set(), joyV={x:0,y:0};
+const MOVE_KEYS=new Set(["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"]);
+let moveLast=performance.now();
+const _f=ok3d?new THREE.Vector3():null, _r=ok3d?new THREE.Vector3():null;
+function moveTick(){
+  const now=performance.now(), dt=Math.min(.05,(now-moveLast)/1000); moveLast=now;
+  let fy=joyV.y, rx=joyV.x;
+  if(held.has("w")||held.has("arrowup")) fy+=1;
+  if(held.has("s")||held.has("arrowdown")) fy-=1;
+  if(held.has("d")||held.has("arrowright")) rx+=1;
+  if(held.has("a")||held.has("arrowleft")) rx-=1;
+  if(!fy&&!rx) return;
+  const len=Math.hypot(fy,rx); if(len>1){ fy/=len; rx/=len; }
+  camera.getWorldDirection(_f); _f.y=0; if(_f.lengthSq()<1e-6) return; _f.normalize();
+  _r.set(-_f.z,0,_f.x);                                   // the camera's right-hand side
+  const t=controls.target, sp=Math.max(5,camera.position.distanceTo(t)*.75)*dt, lim=N/2+12;
+  const dx=(_f.x*fy+_r.x*rx)*sp, dz=(_f.z*fy+_r.z*rx)*sp;
+  const nx=Math.max(-lim,Math.min(lim,t.x+dx)), nz=Math.max(-lim,Math.min(lim,t.z+dz));
+  camera.position.x+=nx-t.x; camera.position.z+=nz-t.z; t.x=nx; t.z=nz;
+  if(lastHover) refreshGhost();
+}
+addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase(); if(!MOVE_KEYS.has(k)) return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  if(e.target.closest && e.target.closest("input,textarea,select,[contenteditable]")) return;
+  if(document.querySelector("dialog[open]")) return;
+  held.add(k); e.preventDefault();
+});
+addEventListener("keyup",e=>held.delete(e.key.toLowerCase()));
+addEventListener("blur",()=>held.clear());
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) held.clear(); });
+
+(()=>{ const joy=$("joy"), knob=$("joyKnob"); let id=null;
+  const show=()=>{ if(!ok3d) return; joy.hidden=false; $("view").classList.add("has-joy"); };
+  if(matchMedia("(pointer: coarse)").matches) show();
+  addEventListener("touchstart",show,{once:true,passive:true});
+  const move=e=>{ const r=joy.getBoundingClientRect(), R=r.width/2, m=R*.62;
+    let dx=e.clientX-(r.left+R), dy=e.clientY-(r.top+R); const l=Math.hypot(dx,dy); if(l>m){ dx*=m/l; dy*=m/l; }
+    knob.style.transform=`translate(${dx}px,${dy}px)`;
+    const vx=dx/m, vy=-dy/m, mag=Math.hypot(vx,vy);
+    if(mag<.12){ joyV.x=joyV.y=0; } else { joyV.x=vx; joyV.y=vy; } };
+  joy.addEventListener("pointerdown",e=>{ e.preventDefault(); e.stopPropagation(); joy.setPointerCapture(e.pointerId); id=e.pointerId; joy.classList.add("active"); move(e); });
+  joy.addEventListener("pointermove",e=>{ if(e.pointerId===id) move(e); });
+  const end=e=>{ if(e.pointerId!==id) return; id=null; joyV.x=joyV.y=0; knob.style.transform=""; joy.classList.remove("active"); };
+  joy.addEventListener("pointerup",end); joy.addEventListener("pointercancel",end);
+  joy.addEventListener("contextmenu",e=>e.preventDefault());
+})();
+
+// ---------- export the build as a 3D file ----------
+let expFmt="glb";
+const FMT_NOTES={
+  glb:"Keeps every color. Opens in Windows 3D Viewer, Blender, many websites and AR viewers.",
+  stl:"One-color shape for 3D printers and slicers like Cura or PrusaSlicer. Touching bricks print as one solid piece.",
+  both:"A colored GLB and a printable STL together."
+};
+function buildExtent(){
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9,y0=1e9,y1=-1e9;
+  for(const b of bricks.values()){ x0=Math.min(x0,b.x); x1=Math.max(x1,b.x+b.w); z0=Math.min(z0,b.z); z1=Math.max(z1,b.z+b.d); y0=Math.min(y0,b.y); y1=Math.max(y1,b.y+1); }
+  return {x0,x1,z0,z1,y0,y1};
+}
+// one merged mesh: a box per brick, a stud on every uncovered top square
+function exportMesh(forPrint){
+  const e=buildExtent(), cx=(e.x0+e.x1)/2, cz=(e.z0+e.z1)/2, gap=forPrint?0:.04;
+  const box=new THREE.BoxGeometry(1,1,1), stud=new THREE.CylinderGeometry(.3,.3,.18,16);
+  const B={p:box.attributes.position.array,n:box.attributes.normal.array,i:box.index.array};
+  const S={p:stud.attributes.position.array,n:stud.attributes.normal.array,i:stud.index.array};
+  const list=[...bricks.values()]; let studs=0;
+  for(const b of list) for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) if(!cells.has(key(b.x+i,b.y+1,b.z+j))) studs++;
+  const nv=list.length*B.p.length/3+studs*S.p.length/3, ni=list.length*B.i.length+studs*S.i.length;
+  const pos=new Float32Array(nv*3), nrm=new Float32Array(nv*3), col=new Float32Array(nv*3), idx=new Uint32Array(ni);
+  let v=0, k=0; const c=new THREE.Color();
+  const add=(G,sx,sy,sz,ox,oy,oz)=>{ const base=v;
+    for(let i=0;i<G.p.length;i+=3){ const o=v*3;
+      pos[o]=G.p[i]*sx+ox; pos[o+1]=G.p[i+1]*sy+oy; pos[o+2]=G.p[i+2]*sz+oz;
+      nrm[o]=G.n[i]; nrm[o+1]=G.n[i+1]; nrm[o+2]=G.n[i+2]; col[o]=c.r; col[o+1]=c.g; col[o+2]=c.b; v++; }
+    for(let i=0;i<G.i.length;i++) idx[k++]=G.i[i]+base; };
+  for(const b of list){
+    c.set(COLORS[b.c][2]).convertSRGBToLinear();
+    const h=forPrint?1:.96;
+    add(B,b.w-gap,h,b.d-gap,b.x-cx+b.w/2,b.y-e.y0+.5,b.z-cz+b.d/2);
+    for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) if(!cells.has(key(b.x+i,b.y+1,b.z+j)))
+      add(S,1,1,1,b.x+i-cx+.5,b.y-e.y0+(forPrint?1.09:1.07),b.z+j-cz+.5);
+  }
+  box.dispose(); stud.dispose();
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(pos,3)); g.setAttribute("normal",new THREE.BufferAttribute(nrm,3));
+  g.setAttribute("color",new THREE.BufferAttribute(col,3)); g.setIndex(new THREE.BufferAttribute(idx,1));
+  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35,metalness:0}));
+  m.name="Bricko build";
+  if(forPrint){ m.scale.setScalar(8); m.rotation.x=Math.PI/2; }      // millimetres, Z up for slicers
+  else m.scale.setScalar(.008);                                      // metres, Y up
+  m.updateMatrixWorld(true);
+  return m;
+}
+function expInfo(){
+  if(!bricks.size){ $("expInfo").textContent="The plate is empty. Build something first."; return; }
+  const e=buildExtent(), mm=n=>Math.round(n*8);
+  $("expInfo").textContent=`${bricks.size.toLocaleString()} bricks · ${mm(e.x1-e.x0)} × ${mm(e.z1-e.z0)} × ${Math.round((e.y1-e.y0)*8+1.5)} mm`;
+}
+function renderExp(){
+  document.querySelectorAll("[data-fmt]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.fmt===expFmt));
+  $("fmtNote").textContent=FMT_NOTES[expFmt];
+  $("expWebNote").hidden=!(window.claude&&window.claude.use);
+  $("expGo").disabled=!bricks.size;
+  expInfo();
+}
+document.querySelectorAll("[data-fmt]").forEach(b=>b.onclick=()=>{ expFmt=b.dataset.fmt; renderExp(); });
+$("exportBtn").onclick=()=>{
+  if(!ok3d||!THREE.GLTFExporter){ say("Exporting needs 3D, which isn't available here."); return; }
+  renderExp(); $("expDlg").showModal();
+};
+$("expClose").onclick=()=>$("expDlg").close();
+$("expDlg").addEventListener("click",e=>{ if(e.target===$("expDlg")) $("expDlg").close(); });
+function toB64(u8){ let s=""; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+async function deliver(base, files){
+  const names=Object.keys(files);
+  const dl = (window.claude&&window.claude.use) ? await window.claude.use("downloads").catch(()=>null) : null;
+  if(dl){
+    const zip=fflate.zipSync(Object.fromEntries(names.map(n=>[n,[files[n],{level:6}]])));
+    await dl.save({filename:base+".zip",data:new Blob([zip])});
+    return "saved";
+  }
+  const cap=window.Capacitor;
+  if(cap&&cap.isNativePlatform&&cap.isNativePlatform()&&cap.Plugins.Filesystem&&cap.Plugins.Share){
+    const uris=[];
+    for(const n of names){ const r=await cap.Plugins.Filesystem.writeFile({path:n,data:toB64(files[n]),directory:"CACHE"}); uris.push(r.uri); }
+    await cap.Plugins.Share.share({title:base,files:uris,dialogTitle:"Save or send your 3D model"});
+    return "shared";
+  }
+  for(const n of names){
+    const url=URL.createObjectURL(new Blob([files[n]],{type:"application/octet-stream"})), a=document.createElement("a");
+    a.href=url; a.download=n; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),10000);
+  }
+  return "downloaded";
+}
+$("expGo").onclick=async()=>{
+  if(!bricks.size) return;
+  const go=$("expGo"); go.disabled=true; go.textContent="Exporting…";
+  const base=(nameIn.value.trim()||"bricko-build").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-")||"bricko-build";
+  try{
+    await new Promise(r=>setTimeout(r,30));      // let the button repaint before the heavy work
+    const files={};
+    if(expFmt!=="stl"){
+      const glb=await new Promise((res,rej)=>{ try{ new THREE.GLTFExporter().parse(exportMesh(false),res,{binary:true}); }catch(err){ rej(err); } });
+      files[base+".glb"]=new Uint8Array(glb);
+    }
+    if(expFmt!=="glb"){
+      const dv=new THREE.STLExporter().parse(exportMesh(true),{binary:true});
+      files[base+".stl"]=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength);
+    }
+    const how=await deliver(base,files);
+    $("expDlg").close();
+    say(how==="saved"?`Exported “${base}”. Open the zip to get your 3D file.`
+      :how==="shared"?`Your 3D model is ready. Pick where to save or send it.`
+      :`Exported “${base}” as ${Object.keys(files).map(n=>n.split(".").pop().toUpperCase()).join(" and ")}.`);
+  }catch(err){
+    const c=err&&err.code;
+    say(c==="declined"?"Export cancelled."
+      :c==="too_large"?"That model is too big to save here. Try a smaller build or STL only."
+      :c==="rate_limited"?"A save is already waiting for you. Finish that one first."
+      :(c&&c!=="bad_request")?"This view can't save files. Open Bricko in the app or in your browser to export."
+      :"Couldn't export the model. Try again.");
+  }
+  go.disabled=false; go.textContent="Export";
+};
+
+// ---------- build animation: bricks drop in, in building order ----------
+let anim=null;
+const _am=ok3d?new THREE.Matrix4():null;
+function easeOutBounce(x){ const n1=7.5625,d1=2.75;
+  if(x<1/d1) return n1*x*x; if(x<2/d1) return n1*(x-=1.5/d1)*x+.75;
+  if(x<2.5/d1) return n1*(x-=2.25/d1)*x+.9375; return n1*(x-=2.625/d1)*x+.984375; }
+function startBuildAnim(list){
+  if(!ok3d||REDUCED||list.length<2) return;
+  if(anim) stopBuildAnim(false);
+  const n=list.length, occ=new Set(), col=new THREE.Color(), g=new THREE.Group();
+  list.forEach(b=>{ for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) occ.add(key(b.x+i,b.y,b.z+j)); });
+  const bySize=new Map(), where=new Array(n), meshes=[];
+  list.forEach((b,o)=>{ const k=b.w+"x"+b.d; if(!bySize.has(k)) bySize.set(k,[]); bySize.get(k).push(o); });
+  for(const [k,ords] of bySize){
+    const [w,d]=k.split("x").map(Number), im=new THREE.InstancedMesh(brickGeo(w,d).box,brickMat,ords.length);
+    im.frustumCulled=false; im.castShadow=im.receiveShadow=true;
+    ords.forEach((o,i)=>{ const b=list[o]; _am.makeTranslation(b.x+O+w/2,b.y+.5,b.z+O+d/2); im.setMatrixAt(i,_am); im.setColorAt(i,col.set(COLORS[b.c][2])); where[o]=[im,i]; });
+    im.instanceColor.needsUpdate=true; im.count=0; im.userData.ords=ords; g.add(im); meshes.push(im);
+  }
+  const studOrd=[], studPos=[], first=new Int32Array(n), cnt=new Int32Array(n);
+  list.forEach((b,o)=>{ first[o]=studPos.length;
+    for(let i=0;i<b.w;i++) for(let j=0;j<b.d;j++) if(!occ.has(key(b.x+i,b.y+1,b.z+j))){ studOrd.push(o); studPos.push([b.x+i+O+.5,b.y+1.07,b.z+j+O+.5,b.c]); }
+    cnt[o]=studPos.length-first[o]; });
+  const st=new THREE.InstancedMesh(studGeo,brickMat,Math.max(1,studPos.length)); st.frustumCulled=false; st.castShadow=true;
+  studPos.forEach((q,i)=>{ _am.makeTranslation(q[0],q[1],q[2]); st.setMatrixAt(i,_am); st.setColorAt(i,col.set(COLORS[q[3]][2])); });
+  if(st.instanceColor) st.instanceColor.needsUpdate=true; st.count=0; g.add(st);
+  const pos=new Float32Array(n*72); let p=0;
+  const seg=(a,b,c,d,e,f)=>{ pos[p++]=a;pos[p++]=b;pos[p++]=c;pos[p++]=d;pos[p++]=e;pos[p++]=f; };
+  for(const b of list){ const x0=b.x+O+.02,x1=b.x+O+b.w-.02,y0=b.y+.02,y1=b.y+.98,z0=b.z+O+.02,z1=b.z+O+b.d-.02;
+    for(const y of [y0,y1]){ seg(x0,y,z0,x1,y,z0); seg(x1,y,z0,x1,y,z1); seg(x1,y,z1,x0,y,z1); seg(x0,y,z1,x0,y,z0); }
+    seg(x0,y0,z0,x0,y1,z0); seg(x1,y0,z0,x1,y1,z0); seg(x1,y0,z1,x1,y1,z1); seg(x0,y0,z1,x0,y1,z1); }
+  const eg=new THREE.BufferGeometry(); eg.setAttribute("position",new THREE.BufferAttribute(pos,3)); eg.setDrawRange(0,0);
+  const ls=new THREE.LineSegments(eg,edgeMat); ls.frustumCulled=false; ls.userData.own=true; g.add(ls);
+  scene.add(g); blockGroup.visible=false;
+  const D=Math.min(8,1.4+n*.004)*1000, W=Math.max(1,Math.round(n/(D/1000)*.35));
+  anim={g,list,meshes,where,st,studOrd,studPos,first,cnt,ls,n,D,W,t0:performance.now(),done:0,auto:controls.autoRotate,autoSp:controls.autoRotateSpeed};
+  controls.autoRotate=true; controls.autoRotateSpeed=1.4;
+  $("skipAnim").hidden=false;
+}
+function animTick(){
+  if(!anim) return;
+  const a=anim, prog=Math.min(1,(performance.now()-a.t0)/a.D), k=prog*(a.n+a.W);
+  const shown=Math.min(a.n,Math.ceil(k)), landed=Math.max(0,Math.min(a.n,Math.floor(k-a.W)));
+  for(const im of a.meshes){ const ords=im.userData.ords; let c=im.count; while(c<ords.length&&ords[c]<shown) c++; im.count=c; }
+  let sc=a.st.count; while(sc<a.studOrd.length&&a.studOrd[sc]<shown) sc++; a.st.count=sc;
+  a.ls.geometry.setDrawRange(0,landed*24);
+  const touched=new Set();
+  for(let o=a.done;o<shown;o++){
+    const t=Math.min(1,Math.max(0,(k-o)/a.W)), off=prog>=1?0:5*(1-easeOutBounce(t)), b=a.list[o], [im,i]=a.where[o];
+    _am.makeTranslation(b.x+O+b.w/2,b.y+.5+off,b.z+O+b.d/2); im.setMatrixAt(i,_am); touched.add(im);
+    for(let s=a.first[o];s<a.first[o]+a.cnt[o];s++){ const q=a.studPos[s]; _am.makeTranslation(q[0],q[1]+off,q[2]); a.st.setMatrixAt(s,_am); }
+    if(a.cnt[o]) touched.add(a.st);
+  }
+  a.done=landed;
+  touched.forEach(m=>{ m.instanceMatrix.needsUpdate=true; });
+  $("count").textContent=`Building… ${landed.toLocaleString()} / ${a.n.toLocaleString()}`;
+  if(prog>=1) stopBuildAnim(true);
+}
+function stopBuildAnim(finished){
+  const a=anim; if(!a) return; anim=null;
+  scene.remove(a.g); disposeGroup(a.g);
+  if(blockGroup) blockGroup.visible=true;
+  controls.autoRotate=a.auto; controls.autoRotateSpeed=a.autoSp;
+  $("skipAnim").hidden=true;
+  const n=bricks.size; $("count").textContent=n.toLocaleString()+(n===1?" brick":" bricks");
+  if(finished) say(`Your picture is built with ${n.toLocaleString()} bricks! Undo puts the plate back the way it was.`);
+}
+$("skipAnim").onclick=()=>stopBuildAnim(true);
+
+// ---------- start ----------
+if(ok3d) init3d();
+// open on a half-built first task so the plate shows how it works
+setBlocks([[9,0,9,0],[9,1,9,2]],false);
+renderSizes(); showTask(); setPlay(play); syncSaveBtns(); renderShelf();
+initStore();
+})();
+</script>
+
+</body>
+</html>
